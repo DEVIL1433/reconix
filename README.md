@@ -18,6 +18,14 @@
 
 ---
 
+## A recon tool & web vulnerability scanner in one
+
+Looking for a **recon tool** that also scans? Or a **vulnerability scanner
+APK** that runs entirely on an Android phone — no server, no root, no
+account? That is exactly what Reconix is: a free reconnaissance and
+web vulnerability scanning tool for **bug bounty hunters, penetration
+testers and defenders**, on Android and on the desktop.
+
 ## What is Reconix?
 
 Reconix performs authorized security assessments of web applications and
@@ -95,6 +103,30 @@ Release builds in this repository are unsigned; sign with your own keystore
 for distribution. The maintainer's release key is private and is never
 committed here.
 
+## Common questions
+
+**Is there a vulnerability scanner APK for Android that works standalone?**
+Yes — Reconix. The scanner engine, its Python runtime and the UI are all
+inside the APK. Install it from [Releases](../../releases), type a target
+you are authorized to test, and scan. Nothing runs on a server; your scan
+data never leaves the phone.
+
+**Is Reconix a recon tool or a vulnerability scanner?**
+Both. The reconnaissance stage maps the external attack surface
+(subdomains, DNS, certificates, cloud exposure, technologies), and the
+scanning stage then tests everything found with 50+ proof-based check
+classes.
+
+**Is Reconix free?**
+The Android APK is free to download and use for authorized testing. The
+source code is published for review under a source-available license
+(see [LICENSE](LICENSE)).
+
+**How is Reconix different from a simple port scanner?**
+Port scanners tell you a door exists. Reconix tests the application behind
+the door — injection, access control, authentication, misconfiguration —
+and shows you the proof for every finding, in plain language.
+
 ## ⚠️ Authorized use only
 
 Reconix is a professional security-assessment tool. **Only scan systems you
@@ -110,5 +142,12 @@ an open-source license; redistribution and commercial use require the
 author's written permission.
 
 ---
+
+---
+
+**Keywords:** recon tool · reconnaissance tool · web vulnerability scanner ·
+vulnerability scanner APK · Android security scanner · attack surface
+management · VAPT tool · bug bounty recon · pentesting tool · OSINT recon ·
+external recon · security assessment
 
 <p align="center"><i>RECONIX — Discover · Scan · Secure</i></p>
