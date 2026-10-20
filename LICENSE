@@ -1,0 +1,19 @@
+RECONIX — SOURCE-AVAILABLE LICENSE
+
+Copyright (c) 2026 Devil. All rights reserved.
+
+The source code in this repository is published for transparency, security
+review and audit purposes only.
+
+You may:
+  - Read and study the code.
+  - Build it for your own authorized security-testing use.
+
+You may not, without the author's prior written permission:
+  - Redistribute the code or binaries, modified or unmodified.
+  - Use the code or binaries commercially.
+  - Rebrand or republish the software as your own.
+
+The software is provided "as is", without warranty of any kind. The author
+accepts no responsibility for misuse or for damage arising from its use.
+Only scan systems you own or are explicitly authorized to test.

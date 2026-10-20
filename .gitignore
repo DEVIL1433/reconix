@@ -1,0 +1,30 @@
+# Scan data — never commit
+*.db
+scans.db
+*.log
+*.har
+uploads/
+screenshots/
+captures/
+
+# Secrets & signing
+*.keystore
+*.jks
+key.properties
+local.properties
+.env
+
+# Build output
+build/
+.gradle/
+app/build/
+*.apk
+*.aab
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
