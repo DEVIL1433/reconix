@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from . import (api_scan, auth, bizlogic as bizlogic_mod,
                browser as browser_mod, chains as chains_mod, checks,
-               checks2, checks3, checks4,
+               checks2, checks3, checks4, checks5,
                extrecon as extrecon_mod,
                har as har_mod, integrations, matrix as matrix_mod, passive,
                proof as proof_mod,
@@ -30,9 +30,11 @@ PROFILES = {
              "csrf", "rfi", "nosql", "ldap", "session", "idor",
              "cachepoison", "ratelimit", "race", "rules", "api",
              "browser", "matrix", "extrecon", "smuggling", "websocket",
-             "bypass403", "bizlogic", "proof", "chains"],
+             "bypass403", "bizlogic", "proof", "chains",
+             "protopollution", "deser"],
     "api": ["recon", "headers", "cors", "passive", "graphql", "jwt", "api",
-            "ratelimit", "rules", "websocket", "smuggling", "bypass403"],
+            "ratelimit", "rules", "websocket", "smuggling", "bypass403",
+            "deser"],
     "passive": ["recon", "headers", "passive", "discovery", "rules"],
     "recon": ["extrecon", "headers", "passive", "rules"],
 }
@@ -422,6 +424,8 @@ def run_scan(target, opts=None, on_event=None):
         checks.dir_listing_check(ctx, pages)
     if "dom" in enabled:
         checks.dom_xss_check(ctx, pages, js_urls)
+    if "protopollution" in enabled:
+        checks5.protopollution_check(ctx, pages)
     if "cors" in enabled:
         for u in [target] + param_urls[:5]:
             checks.cors_check(ctx, u)
@@ -479,6 +483,8 @@ def run_scan(target, opts=None, on_event=None):
         url_checks.append(checks2.nosql_url)
     if "ldap" in enabled:
         url_checks.append(checks2.ldap_url)
+    if "deser" in enabled:
+        url_checks.append(checks5.deser_url)
     if url_checks and not ctx.stop.is_set():
         emit("phase", f"Active checks on {len(param_urls)} parameterized "
                       f"URLs ({len(url_checks)} check types)...")

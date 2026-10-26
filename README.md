@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <img alt="Engine" src="https://img.shields.io/badge/engine-3.20-blue">
-  <img alt="Android" src="https://img.shields.io/badge/Android-v1.4-green">
+  <img alt="Engine" src="https://img.shields.io/badge/engine-3.21-blue">
+  <img alt="Android" src="https://img.shields.io/badge/Android-v1.5-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Dependencies" src="https://img.shields.io/badge/dependencies-zero-brightgreen">
 </p>
@@ -70,8 +70,8 @@ inside a single APK. No server, no Termux, no account; scan data never
 leaves the phone.
 
 **Download the latest APK from [Releases](../../releases)** and verify it:
-v1.4 is **30,295,601 bytes**, SHA-256
-`72005ed95118e9dcc07810d7f6570505aa13c4e258bf7612711cd73f4eb38094`.
+v1.5 is **30,300,194 bytes**, SHA-256
+`9a256b9505755592768ec8a5467ce36e2f2c1140fa83bb66c0a2efe2bcd8b158`.
 A different size means a corrupted download — fetch it again.
 
 <p align="center">
@@ -87,7 +87,8 @@ A different size means a corrupted download — fetch it again.
 | `engine/` | The scanner: `app.py` (web UI + API), `wscan/` (check engine), `rules/`, `tests/`, CLI in `webscan.py` |
 | `android/` | The Android app (Kotlin-free: Java + Chaquopy) that packages the engine into the standalone APK |
 | `img/` | Branding and screenshots |
-| `RELEASE_NOTES_v1.4.md` | Notes for the current release |
+| `RELEASE_NOTES_v1.5.md` | Notes for the current release |
+| `RELEASE_NOTES_v1.4.md` | Notes for the previous release |
 
 ## Building the Android app
 

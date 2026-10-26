@@ -7,13 +7,19 @@ android {
     namespace "com.devil.reconix"
     compileSdk 34
 
+    signingConfigs {
+        // Release signing is intentionally NOT configured here.
+        // To build a signed release APK, create your own keystore and
+        // add a signingConfigs.release block with your own credentials.
+        // Never commit keystore passwords to a repository.
+    }
 
     defaultConfig {
         applicationId "com.devil.reconix"
         minSdk 24
         targetSdk 34
-        versionCode 5
-        versionName "1.4"
+        versionCode 6
+        versionName "1.5"
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"
@@ -27,9 +33,11 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
+            // signingConfig signingConfigs.release  // uncomment after configuring release signing
         }
         release {
             minifyEnabled false
+            // signingConfig signingConfigs.release  // uncomment after configuring release signing
         }
     }
 

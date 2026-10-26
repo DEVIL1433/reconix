@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Reconix 3.20 — deep web vulnerability scanner with proof-based findings + EASM.
+Reconix 3.21 — deep web vulnerability scanner with proof-based findings + EASM.
 
   CLI:    python3 webscan.py http://127.0.0.1:8080 --profile full
   Web UI: python3 app.py            -> http://127.0.0.1:8777
@@ -126,7 +126,7 @@ table{{border-collapse:collapse}}
 th,td{{border-color:#232326 !important}}
 th{{color:#8e8e96;text-align:left}}
 a{{color:#93c5fd}}</style></head>
-<body>{cover}<h1>Reconix 3.20 report</h1>
+<body>{cover}<h1>Reconix 3.21 report</h1>
 <p>Target: <code>{esc(result['target'])}</code> · Profile: {esc(result.get('profile',''))} ·
 Pages: {result['pages']} · Findings: {len(result['findings'])}
 (Critical {c.get('Critical',0)}, High {c.get('High',0)}, Medium {c.get('Medium',0)},
@@ -140,7 +140,7 @@ Low {c.get('Low',0)}, Info {c.get('Info',0)}) · Risk {result.get('risk_score',0
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Reconix 3.20 — deep web vulnerability scanner")
+    ap = argparse.ArgumentParser(description="Reconix 3.21 — deep web vulnerability scanner")
     ap.add_argument("target", nargs="?", default="")
     ap.add_argument("--benchmark", action="store_true",
                     help="run the accuracy benchmark (recall on the test "

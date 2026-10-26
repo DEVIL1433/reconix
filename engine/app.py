@@ -11,6 +11,7 @@ import argparse
 import base64
 import json
 import os
+import secrets
 import sqlite3
 import sys
 import threading
@@ -147,6 +148,20 @@ def set_setting(key, value):
     conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, value))
     conn.commit()
     conn.close()
+
+
+def ensure_api_token():
+    """First-run loopback auth: a fresh install has no token, which
+    leaves the whole local API open to any local process. Generate a
+    per-install random token once and keep it in the settings table
+    (the app's private data directory — never in the repo, never in
+    git). The token is delivered to the user's browser only by
+    injection into the served HTML page, never via an API endpoint."""
+    token = get_setting("api_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        set_setting("api_token", token)
+    return token
 
 
 def fp_suppress_set(target):
@@ -525,7 +540,7 @@ def scheduler_loop():
 
 
 UI = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Reconix 3.20 — Vulnerability Scanner & Attack Surface</title>
+<title>Reconix 3.21 — Vulnerability Scanner & Attack Surface</title>
 <style>
 :root{--bg:#0a0a0b;--panel:#101012;--panel2:#141416;--line:#232326;--txt:#dcdce0;
 --mut:#8e8e96;--crit:#f4534a;--high:#f59e0b;--med:#eab308;--low:#22c55e;--info:#8e8e96;--navy:#f2f2f4}
@@ -640,7 +655,7 @@ pre .hk{color:var(--navy);font-weight:700}
 
 </style></head><body>
 <aside>
-  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.20</span></div>
+  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.21</span></div>
   <div class="tagline">DISCOVER · SCAN · SECURE</div>
   <nav id="nav">
     <button data-view="dashboard" class="active" onclick="show('dashboard')">Dashboard</button>
@@ -1630,7 +1645,7 @@ loadHistory(); loadProjects(); loadSchedules(); loadRepeatHistory(); loadRules()
 </body></html>"""
 
 
-# --- Mobile app shell (Reconix 3.20) -------------------------------------
+# --- Mobile app shell (Reconix 3.21) -------------------------------------
 # Injected into the UI only when the request comes from the Android app
 # (User-Agent contains "ReconixAndroid"). Desktop/laptop UI is untouched.
 MOBILE_HEAD = r"""
@@ -1892,6 +1907,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             html = UI.replace("%%MARK%%", MARK_URI).replace(
                 "%%LOCKUP%%", LOCKUP_URI)
+            # Loopback token delivery: the page's own fetch wrapper
+            # reads localStorage 'wscan_token' on every request, so the
+            # browser always sends the current server token without the
+            # user ever typing one. Injected into the HTML head only —
+            # no endpoint hands the token out.
+            _tok = ensure_api_token()
+            _script = ("<script>try{localStorage.setItem('wscan_token',%s)}"
+                       "catch(e){}</script>" % json.dumps(_tok))
+            html = html.replace('<meta charset="utf-8">',
+                                '<meta charset="utf-8">' + _script, 1)
             if "ReconixAndroid" in (self.headers.get("User-Agent") or ""):
                 html = html.replace('<meta charset="utf-8">',
                                     '<meta charset="utf-8">' + MOBILE_HEAD, 1)
@@ -2139,7 +2164,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?")[0]
         if path.startswith("/api/") and not self._authed():
-            return self._json({"error": "API token required"}, 401)
+            return self._json({"error": "API token required"}, 403)
         if path == "/api/projects":
             body = self._body()
             conn = db()
@@ -2196,6 +2221,11 @@ class Handler(BaseHTTPRequestHandler):
             for k in ("webhook_url", "api_token", "company_name",
                       "logo_path", "a403_enabled"):
                 if k in body:
+                    # A blank api_token would silently reopen the API
+                    # (empty token means "no auth" in _authed), so a
+                    # blank value is ignored and the current token kept.
+                    if k == "api_token" and not str(body[k]).strip():
+                        continue
                     set_setting(k, body[k])
             return self._json({"ok": True})
         if path == "/api/a403/run":
@@ -2424,7 +2454,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         path = self.path.split("?")[0]
         if path.startswith("/api/") and not self._authed():
-            return self._json({"error": "API token required"}, 401)
+            return self._json({"error": "API token required"}, 403)
         if path.startswith("/api/rules/"):
             fname = os.path.basename(path.split("/")[3])
             fpath = os.path.join(RULES_DIR, fname)
@@ -2485,9 +2515,12 @@ def main():
                "('running','queued')")
     _c.commit()
     _c.close()
+    # First run: mint the loopback API token so the API is never
+    # open by default (see ensure_api_token).
+    ensure_api_token()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Reconix 3.20 UI -> http://127.0.0.1:{args.port}")
+    print(f"Reconix 3.21 UI -> http://127.0.0.1:{args.port}")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

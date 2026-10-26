@@ -103,7 +103,7 @@ def build_har(pages, findings):
             entries.append(_entry(f["request"], 0, f["url"],
                                   f.get("response_snippet", ""), 0))
     return json.dumps({"log": {"version": "1.2",
-                               "creator": {"name": "Reconix 3.20",
+                               "creator": {"name": "Reconix 3.21",
                                            "version": "3.1"},
                                "entries": entries}}, indent=1)
 

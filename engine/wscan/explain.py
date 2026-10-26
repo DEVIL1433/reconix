@@ -77,6 +77,16 @@ _RULES = [
     (("template injection", "ssti"),
      "User input is placed inside a template that the server processes. An "
      "attacker can add template commands that run on the server."),
+    (("prototype pollution",),
+     "The app mixes what a user sends into its shared settings without "
+     "checking the names. A name like __proto__ reaches the master copy "
+     "every object is built from, so one request can quietly change "
+     "settings — like prices or admin flags — for everyone using the app."),
+    (("deserialization", "insecure deserialization"),
+     "The app rebuilds objects from text a user sends, without checking "
+     "it first. A crafted object can make the server run the attacker's "
+     "code or hand over its secrets, because rebuilding is treated as "
+     "safe when it isn't."),
     (("remote file inclusion",),
      "The website loads files from addresses the user provides. An "
      "attacker can make it load their own harmful file and run it."),

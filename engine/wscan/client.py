@@ -10,7 +10,7 @@ from http.cookiejar import CookieJar
 
 from .calibrate import waf_blocked
 
-USER_AGENT = "Reconix/3.20 (authorized security testing)"
+USER_AGENT = "Reconix/3.21 (authorized security testing)"
 TIMEOUT = 12
 
 _ctx = ssl.create_default_context()

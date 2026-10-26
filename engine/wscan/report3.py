@@ -29,6 +29,8 @@ EXPLAIN = {
     "graphql": "The full map of the site's data API is public, making targeted attacks much easier.",
     "default credentials": "The site accepts a factory-default username and password — anyone can log in.",
     "cache poisoning": "Attackers may be able to poison the shared cache so every visitor receives malicious content.",
+    "prototype pollution": "Attackers can change values the app trusts — prices, roles, admin flags — by polluting the shared object every other object is built from.",
+    "deserialization": "Attackers can make the server rebuild a crafted object from user input, which can lead to running code on the server itself.",
     "rate limiting": "Nothing slows down automated guessing, so passwords or codes can be tried millions of times.",
     "tls": "The encryption certificate has a problem, which can expose traffic or trigger browser warnings.",
     "certificate": "The encryption certificate has a problem, which can expose traffic or trigger browser warnings.",
@@ -44,7 +46,7 @@ def explain(title):
 
 
 # Plain-language "what attacks can be performed" lines per weakness class
-# (3.20 simple finding view). Matched by title keyword first (same style
+# (3.21 simple finding view). Matched by title keyword first (same style
 # as EXPLAIN), then by CWE. Bullets stay class-true: they describe what
 # this kind of weakness allows, in "can" language — never a claim that
 # it was done on this target beyond what the proof shows.
@@ -87,6 +89,18 @@ ATTACKS = {
         "Read cloud metadata — temporary cloud credentials (169.254.169.254)",
         "Scan and map the internal network from the server's position",
         "Reach internal admin panels that trust the server's address",
+    ],
+    "prototype pollution": [
+        "Change values the app trusts — prices, roles, admin flags — without logging in",
+        "Turn a harmless page into stored script execution for every visitor",
+        "Bypass security checks that read settings from merged objects",
+        "In server-side cases, escalate to full remote code execution",
+    ],
+    "deserialization": [
+        "Run code on the server by feeding it a crafted serialized object",
+        "Read files and secrets from the server process",
+        "Delete or change data the app trusts",
+        "Take the server over completely in the worst case",
     ],
     "xml external entity": [
         "Read files from the server through crafted XML",
@@ -331,6 +345,7 @@ ATTACKS_BY_CWE = {
     "CWE-693": "header", "CWE-1021": "clickjacking",
     "CWE-113": "header", "CWE-524": "cache deception",
     "CWE-444": "smuggling", "CWE-16": "header",
+    "CWE-1321": "prototype pollution", "CWE-502": "deserialization",
 }
 
 
@@ -437,7 +452,7 @@ def _wrap(text, width=96):
 
 def to_pdf(result):
     """Minimal valid PDF: summary page + one block per finding."""
-    lines = ["Reconix 3.20 - Vulnerability Report", ""]
+    lines = ["Reconix 3.21 - Vulnerability Report", ""]
     lines += _wrap(executive_summary(result))
     lines += ["", "=" * 90, ""]
     for f in result.get("findings", []):
