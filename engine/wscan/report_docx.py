@@ -86,6 +86,8 @@ def to_docx(result):
         body.append(_p(f["detail"]))
         if f.get("proof"):
             body.append(_p(f"Proof: {f['proof']}"))
+        if f.get("payload"):
+            body.append(_p(f"Payload: {f['payload']}"))
         body.append(_p(f"Remediation: {f['remediation']}"))
         if f.get("poc_curl"):
             body.append(_p(f"PoC (curl): {f['poc_curl']}"))

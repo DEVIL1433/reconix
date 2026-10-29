@@ -420,11 +420,11 @@ def to_csv(findings):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["severity", "confidence", "title", "cwe", "url", "parameter",
-                "detail", "proof", "remediation"])
+                "detail", "proof", "remediation", "payload"])
     for f in findings:
         w.writerow([f["severity"], f["confidence"], f["title"], f.get("cwe", ""),
                     f["url"], f.get("param", ""), f["detail"], f.get("proof", ""),
-                    f["remediation"]])
+                    f["remediation"], f.get("payload", "")])
     return buf.getvalue()
 
 
@@ -452,7 +452,7 @@ def _wrap(text, width=96):
 
 def to_pdf(result):
     """Minimal valid PDF: summary page + one block per finding."""
-    lines = ["Reconix 3.21 - Vulnerability Report", ""]
+    lines = ["Reconix 3.28 - Vulnerability Report", ""]
     lines += _wrap(executive_summary(result))
     lines += ["", "=" * 90, ""]
     for f in result.get("findings", []):
@@ -460,6 +460,8 @@ def to_pdf(result):
         lines.append(f"URL: {f['url']}")
         if f.get("param"):
             lines.append(f"Parameter: {f['param']}")
+        if f.get("payload"):
+            lines += _wrap(f"Payload: {f['payload']}")
         lines += _wrap(f"Detail: {f['detail']}")
         _atk = attacks_for(f)
         if _atk:
@@ -468,6 +470,16 @@ def to_pdf(result):
         if f.get("proof"):
             lines += _wrap(f"Proof: {f['proof']}")
         lines += _wrap(f"Remediation: {f['remediation']}")
+        lines.append("")
+    mx = result.get("permission_matrix") or []
+    if mx:
+        lines += ["", "Permission matrix (who can see what)", ""]
+        for row in mx:
+            parts = []
+            for label, v in (row.get("results") or {}).items():
+                parts.append(f"{label}: {v.get('status', '—')} "
+                             f"({v.get('length', 0)} B)")
+            lines += _wrap(f"{row.get('url', '')} | " + " | ".join(parts))
         lines.append("")
     # paginate: 52 lines/page
     pages = [lines[i:i + 52] for i in range(0, len(lines), 52)] or [["(empty)"]]

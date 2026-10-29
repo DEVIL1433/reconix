@@ -20,7 +20,9 @@ import java.io.File;
 public class ReconixService extends Service {
     private static final String CHANNEL = "reconix";
     private static final String TAG = "ReconixSvc";
-    private Thread worker;
+    private volatile Thread worker;
+    private volatile Thread watchdog;
+    private volatile boolean stopped = false;
     private PowerManager.WakeLock wakeLock;
 
     @Override
@@ -75,8 +77,7 @@ public class ReconixService extends Service {
         }
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    private synchronized void startWorker() {
         // Fix 2a: a finished worker must never block an engine restart.
         if (worker != null && !worker.isAlive()) worker = null;
         if (worker == null) {
@@ -98,11 +99,38 @@ public class ReconixService extends Service {
             worker.setDaemon(true);
             worker.start();
         }
+    }
+
+    private synchronized void startWatchdog() {
+        if (watchdog != null && watchdog.isAlive()) return;
+        watchdog = new Thread(() -> {
+            try {
+                while (!stopped) {
+                    Thread.sleep(30000);
+                    if (!stopped && (worker == null || !worker.isAlive())) {
+                        Log.w(TAG, "engine worker died, restarting");
+                        startWorker();
+                    }
+                }
+            } catch (InterruptedException ignored) {}
+        }, "reconix-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        startWorker();
+        startWatchdog();
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
+        stopped = true;
+        try {
+            if (watchdog != null) watchdog.interrupt();
+        } catch (Exception ignored) {}
         try {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         } catch (Exception ignored) {}

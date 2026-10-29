@@ -130,7 +130,7 @@ def sqli_url(ctx, url):
                   f"error is reflected in the response.",
                   proof=f"DB error in response: {err}"
                         + (f" | DBMS fingerprinted: {dbms}" if dbms else ""),
-                  param=name, resp=r, cwe="CWE-89")
+                  param=name, resp=r, cwe="CWE-89", payload=orig + probe)
             continue
         # 2) UNION marker extraction — the marker is built by SQL string
         # concatenation ('WSUN'||'ION9' / CONCAT), so the literal marker
@@ -155,7 +155,8 @@ def sqli_url(ctx, url):
                               f"concatenation), proving execution.",
                               proof="Marker WSUNION9 (SQL-concatenated) "
                                     "returned in response body",
-                              param=name, resp=r, cwe="CWE-89")
+                              param=name, resp=r, cwe="CWE-89",
+                              payload=orig + quote + union)
                         union_done = True
                         break
                 if union_done:
@@ -214,7 +215,9 @@ def sqli_url(ctx, url):
                       proof=f"similarity base/TRUE={st:.2f} "
                             f"base/FALSE={sf:.2f} TRUE/FALSE={stf:.2f}"
                             f"{variant_note}",
-                      param=name, resp=t, cwe="CWE-89")
+                      param=name, resp=t, cwe="CWE-89",
+                      payload=(pt if not variant_note
+                               else f"{orig}'/**/aNd/**/'1'='1"))
                 continue
         # 4) time-based blind — DBMS-targeted, statistically confirmed:
         # median baseline (3 samples), 2 attack samples must both clear
@@ -268,7 +271,8 @@ def sqli_url(ctx, url):
                                     f"control={ctrl.elapsed:.2f}s "
                                     f"injected={s1.elapsed:.2f}s,"
                                     f"{s2.elapsed:.2f}s",
-                              param=name, resp=s1, cwe="CWE-89")
+                              param=name, resp=s1, cwe="CWE-89",
+                              payload=payload)
                         done_time = True
                         break
         if waf_hit[0]:
@@ -330,7 +334,7 @@ def xss_url(ctx, url):
                   proof=f"Unescaped payload in response: {payload}{vnote}"
                         + (" | confirmed with a second payload" if verified
                            else ""),
-                  param=name, resp=r, cwe="CWE-79",
+                  param=name, resp=r, cwe="CWE-79", payload=payload,
                   confidence="Confirmed" if verified else "Tentative")
 
 
@@ -353,7 +357,7 @@ def cmdi_url(ctx, url):
                       f"Parameter '{name}' is passed to a system shell; the echo "
                       f"marker was executed and returned.",
                       proof=f"Marker {token} in response", param=name,
-                      resp=r, cwe="CWE-78")
+                      resp=r, cwe="CWE-78", payload=value)
                 return
         # Windows family: cmd.exe has no $((..)) arithmetic — read a file
         # whose CONTENT marker can never appear in a reflected input.
@@ -366,7 +370,7 @@ def cmdi_url(ctx, url):
                       f"an injected `type` command returned win.ini "
                       f"contents.",
                       proof="[fonts] section of win.ini in response",
-                      param=name, resp=r, cwe="CWE-78")
+                      param=name, resp=r, cwe="CWE-78", payload=orig + tpl)
                 return
         # time-based — statistical: median baseline, a control request
         # that must stay fast, and two attack samples that must both delay
@@ -392,7 +396,8 @@ def cmdi_url(ctx, url):
                           proof=f"baseline(median)={baseline:.2f}s "
                                 f"control={ctrl.elapsed:.2f}s "
                                 f"injected={r.elapsed:.2f}s,{r2.elapsed:.2f}s",
-                          param=name, resp=r, cwe="CWE-78")
+                          param=name, resp=r, cwe="CWE-78",
+                          payload=orig + tpl)
                     return
 
 
@@ -416,7 +421,7 @@ def ssti_url(ctx, url):
                       f"({engine}): {a}*{b} was computed server-side to {expect}. "
                       f"SSTI typically escalates to RCE.",
                       proof=f"{payload} -> {expect} in response", param=name,
-                      resp=r, cwe="CWE-1336")
+                      resp=r, cwe="CWE-1336", payload=orig + payload)
                 return
 
 
@@ -443,13 +448,13 @@ def lfi_url(ctx, url):
                       f"Parameter '{name}' reads arbitrary files outside the web "
                       f"root; /etc/passwd contents were returned.",
                       proof=r.body[r.body.find("root:"):r.body.find("root:") + 120],
-                      param=name, resp=r, cwe="CWE-22")
+                      param=name, resp=r, cwe="CWE-22", payload=probe)
                 return
             if "for 16-bit app support" in r.body or "[fonts]" in r.body:
                 F.add("Critical", "Local File Inclusion / Path Traversal", url,
                       f"Parameter '{name}' read C:\\windows\\win.ini.",
                       proof="[fonts] section of win.ini in response",
-                      param=name, resp=r, cwe="CWE-22")
+                      param=name, resp=r, cwe="CWE-22", payload=probe)
                 return
             if "php://filter" in probe and r.status == 200:
                 m = re.search(r"[A-Za-z0-9+/=]{60,}", r.body)
@@ -460,7 +465,8 @@ def lfi_url(ctx, url):
                             F.add("High", "Local File Inclusion (php://filter)", url,
                                   f"Parameter '{name}' exposes PHP source via the "
                                   f"php://filter wrapper.",
-                                  proof=dec[:200], param=name, resp=r, cwe="CWE-22")
+                                  proof=dec[:200], param=name, resp=r, cwe="CWE-22",
+                                  payload=probe)
                             return
                     except Exception:
                         pass
@@ -482,7 +488,8 @@ def redirect_url(ctx, url):
                 F.add("Medium", "Open Redirect", url,
                       f"Parameter '{name}' redirects the browser to an arbitrary "
                       f"external URL — usable for phishing/token theft.",
-                      proof=f"Location: {loc}", param=name, resp=r, cwe="CWE-601")
+                      proof=f"Location: {loc}", param=name, resp=r, cwe="CWE-601",
+                      payload="https://example.org/wscan-probe")
                 return
 
 
@@ -496,7 +503,7 @@ def crlf_url(ctx, url):
                   f"Parameter '{name}' injects arbitrary response headers "
                   f"(CR/LF not sanitized).",
                   proof="Response contains injected header 'X-WScan-Injected: crlf'",
-                  param=name, resp=r, cwe="CWE-113")
+                  param=name, resp=r, cwe="CWE-113", payload=probe)
             return
 
 
@@ -534,7 +541,8 @@ def ssrf_url(ctx, url):
         probe_url = ctx.oob.url(token)
         r = client.fetch(with_param(url, name, probe_url))
         ctx.oob_pending.append({
-            "token": token, "kind": "SSRF", "url": url, "param": name, "resp": r})
+            "token": token, "kind": "SSRF", "url": url, "param": name, "resp": r,
+            "payload": probe_url})
         # direct metadata probe (in-band proof if the app echoes the fetch)
         meta = client.fetch(with_param(
             url, name, "http://169.254.169.254/latest/meta-data/"))
@@ -543,7 +551,8 @@ def ssrf_url(ctx, url):
             F.add("Critical", "Server-Side Request Forgery (cloud metadata)", url,
                   f"Parameter '{name}' made the server fetch the EC2 metadata "
                   f"service and the response was returned.",
-                  proof=meta.body[:200], param=name, resp=meta, cwe="CWE-918")
+                  proof=meta.body[:200], param=name, resp=meta, cwe="CWE-918",
+                  payload="http://169.254.169.254/latest/meta-data/")
 
 
 def finalize_oob(ctx):
@@ -568,21 +577,24 @@ def finalize_oob(ctx):
                 f"Parameter '{pend['param']}' made the server issue an HTTP "
                 f"request to an attacker-controlled URL. Internal services and "
                 f"cloud metadata are reachable from here.",
-                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-918")
+                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-918",
+                payload=pend.get("payload", ""))
         elif pend["kind"] == "XXE":
             ctx.findings.add(
                 "High", "XML External Entity (blind, out-of-band confirmed)",
                 pend["url"],
                 "The XML parser resolved an external entity pointing at an "
                 "attacker-controlled server (callback received).",
-                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-611")
+                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-611",
+                payload=pend.get("payload", ""))
         elif pend["kind"] == "BlindXSS":
             ctx.findings.add(
                 "High", "Blind Cross-Site Scripting (out-of-band confirmed)",
                 pend["url"],
                 "A stored payload executed in a browser that then called the "
                 "OOB listener — classic admin-panel blind XSS.",
-                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-79")
+                proof=proof, param=pend["param"], resp=pend["resp"], cwe="CWE-79",
+                payload=pend.get("payload", ""))
 
 
 # ------------------------------------------------------------------ XXE
@@ -619,7 +631,7 @@ def xxe_check(ctx, urls, forms=None):
                   "The XML parser resolves external entities; /etc/passwd was "
                   "read and returned.",
                   proof=r.body[r.body.find("root:"):r.body.find("root:") + 120],
-                  param="(XML body)", resp=r, cwe="CWE-611")
+                  param="(XML body)", resp=r, cwe="CWE-611", payload=payload)
             continue
         # blind OOB
         token = ctx.oob.new_token()
@@ -627,7 +639,8 @@ def xxe_check(ctx, urls, forms=None):
         r = client.fetch(endpoint, method="POST", raw_body=payload.encode(),
                          content_type="application/xml")
         ctx.oob_pending.append({"token": token, "kind": "XXE",
-                                "url": endpoint, "param": "(xml body)", "resp": r})
+                                "url": endpoint, "param": "(xml body)", "resp": r,
+                                "payload": payload})
 
 
 # ------------------------------------------------------------------ host header
@@ -642,7 +655,7 @@ def host_header_check(ctx, base):
               "The application builds absolute URLs from the unvalidated Host "
               "header — password-reset poisoning / cache poisoning vector.",
               proof=f"Injected host '{evil}' reflected in response body",
-              resp=r, cwe="CWE-644")
+              resp=r, cwe="CWE-644", payload=evil)
 
 
 # ------------------------------------------------------------------ forms
@@ -722,7 +735,7 @@ def forms_check(ctx, page_url, form, all_page_urls):
                 F.add("High", "Cross-Site Scripting (reflected, form)", action,
                       f"Form field '{fname}' on {page_url} reflects the payload "
                       f"unescaped.", proof=f"Payload reflected: {payload}",
-                      param=fname, resp=r, cwe="CWE-79")
+                      param=fname, resp=r, cwe="CWE-79", payload=payload)
                 break
         action, r = _submit_form(client, page_url, form,
                                  _form_fields(form, {fname: "test'"}))
@@ -730,7 +743,8 @@ def forms_check(ctx, page_url, form, all_page_urls):
         if r.status and err:
             F.add("High", "SQL Injection (form, error-based)", action,
                   f"Form field '{fname}' on {page_url} triggers a database error.",
-                  proof=f"DB error: {err}", param=fname, resp=r, cwe="CWE-89")
+                  proof=f"DB error: {err}", param=fname, resp=r, cwe="CWE-89",
+                  payload="test'")
         # stored XSS: submit a payload w/ fetch beacon + marker,
         # then look for the unescaped marker on every known page.
         token = ctx.oob.new_token()
@@ -739,7 +753,8 @@ def forms_check(ctx, page_url, form, all_page_urls):
         action, r = _submit_form(client, page_url, form,
                                  _form_fields(form, {fname: beacon}))
         ctx.oob_pending.append({"token": token, "kind": "BlindXSS",
-                                "url": action, "param": fname, "resp": r})
+                                "url": action, "param": fname, "resp": r,
+                                "payload": beacon})
         for u in all_page_urls:
             rr = client.fetch(u)
             if rr.status and stored_marker in (rr.body or "") \
@@ -749,7 +764,7 @@ def forms_check(ctx, page_url, form, all_page_urls):
                       f"persists and is served unescaped on {u}. The request "
                       f"shown is the submission that planted it.",
                       proof=f"Stored marker {stored_marker} present unescaped on {u}",
-                      param=fname, resp=r, cwe="CWE-79")
+                      param=fname, resp=r, cwe="CWE-79", payload=beacon)
                 break
         # second-order SQLi: plant a quote, then hunt for a NEW SQL
         # error on pages that were clean during the crawl — the stored
@@ -787,7 +802,8 @@ def forms_check(ctx, page_url, form, all_page_urls):
                                 f"value reaches a SQL query unsafely "
                                 f"(second-order injection).",
                                 proof=f"DB error after plant: {err}",
-                                param=fname, resp=rr, cwe="CWE-89")
+                                param=fname, resp=rr, cwe="CWE-89",
+                                payload="wscan2nd'")
                             ctx._so_done = True
                             break
                     # leave the app as we found it

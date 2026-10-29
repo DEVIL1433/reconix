@@ -32,8 +32,8 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 public class MainActivity extends Activity {
-    private static final String VERSION_MARK = "3.21-v3r";
-    private static final String APPV = "v1.5";
+    private static final String VERSION_MARK = "3.28-v1";
+    private static final String APPV = "v1.10";
     private WebView web;
     private TextView splash;
     private volatile boolean booting = false;
@@ -43,15 +43,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Fix 4: ask for the notification permission so the running-engine
-        // notification is actually visible on Android 13+.
-        if (Build.VERSION.SDK_INT >= 33
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                        != PackageManager.PERMISSION_GRANTED) {
-            try {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
-            } catch (Exception ignored) {}
-        }
+        // Notification permission, 3-state flow (see requestNotificationPermission
+        // below): check -> rationale dialog -> ask -> Settings on permanent denial.
+        requestNotificationPermission();
 
         FrameLayout root = new FrameLayout(this);
         splash = new TextView(this);
@@ -84,11 +78,11 @@ public class MainActivity extends Activity {
         WebSettings ws = web.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
-        ws.setLoadWithOverviewMode(false);
-        ws.setUseWideViewPort(false);
+        ws.setLoadWithOverviewMode(true);
+        ws.setUseWideViewPort(true);
         // Triggers the mobile app shell in Reconix 3.20 (UA-gated server side).
         ws.setUserAgentString(ws.getUserAgentString() + " ReconixAndroid/3.20");
-        ws.setBuiltInZoomControls(true);
+        ws.setBuiltInZoomControls(false);
         ws.setDisplayZoomControls(false);
         ws.setAllowFileAccess(false);
         ws.setAllowContentAccess(false);
@@ -110,25 +104,33 @@ public class MainActivity extends Activity {
         // Fix 1: report exports (PDF/HTML/CSV/DOCX/HAR) are real downloads.
         // Route them to the system DownloadManager -> Downloads folder.
         web.setDownloadListener((url, userAgent, contentDisposition, mimeType, length) -> {
-            try {
-                String name = URLUtil.guessFileName(url, contentDisposition, mimeType);
-                DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
-                req.setMimeType(mimeType);
-                req.setTitle(name);
-                req.setDescription("Reconix report");
-                req.setNotificationVisibility(
-                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
-                String cookies = CookieManager.getInstance().getCookie(url);
-                if (cookies != null) req.addRequestHeader("Cookie", cookies);
-                req.addRequestHeader("User-Agent", userAgent);
-                ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(req);
-                Toast.makeText(this, "Downloading " + name + " to Downloads",
-                        Toast.LENGTH_LONG).show();
-            } catch (Exception e) {
-                Toast.makeText(this, "Download failed: " + e.getMessage(),
-                        Toast.LENGTH_LONG).show();
-            }
+            // The loopback API requires X-Api-Key on every non-root request,
+            // and DownloadManager cannot see the page's localStorage token.
+            // Read the token out of the page first, then enqueue with it.
+            web.evaluateJavascript("localStorage.getItem('wscan_token')", tokenValue -> {
+                String token = "";
+                if (tokenValue != null && !"null".equals(tokenValue)) {
+                token = tokenValue.replace(String.valueOf((char) 34), "");
+                }
+                try {
+                    String name = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                    DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+                    req.setMimeType(mimeType);
+                    req.setTitle(name);
+                    req.setDescription("Reconix report");
+                    req.setNotificationVisibility(
+                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+                    if (!token.isEmpty()) req.addRequestHeader("X-Api-Key", token);
+                    req.addRequestHeader("User-Agent", userAgent);
+                    ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(req);
+                    Toast.makeText(this, "Downloading " + name + " to Downloads",
+                            Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    Toast.makeText(this, "Download failed: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                }
+            });
         });
         root.addView(web, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -258,6 +260,52 @@ public class MainActivity extends Activity {
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33
+                || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Notifications")
+                    .setMessage("Reconix shows a notification while the scanner engine runs, so Android does not kill long scans. Allow notifications to keep it visible.")
+                    .setPositiveButton("Continue", (d, w) -> {
+                        try {
+                            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                        } catch (Exception ignored) {}
+                    })
+                    .setNegativeButton("Not now", null)
+                    .show();
+        } else {
+            try {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != 1001) return;
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (granted) return;
+        if (Build.VERSION.SDK_INT >= 33
+                && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            // Permanently denied: guide the user to the app Settings page.
+            Toast.makeText(this, "Notifications off — open Settings to turn them back on.",
+                    Toast.LENGTH_LONG).show();
+            try {
+                Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Exception ignored) {}
+        } else {
+            Toast.makeText(this, "Notifications off — the engine still runs in the background.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 

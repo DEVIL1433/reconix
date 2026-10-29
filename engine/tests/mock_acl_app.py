@@ -45,6 +45,7 @@ is judged against):
   /vault         Legacy fixture: 403 unless X-Forwarded-For is
                  127.0.0.1, then a "confidential" page.
   /console       403;  /console/ -> 200 ops console (spelling flaw).
+  /querycanary   403; any query string -> 200 (URI-match flaw).
   /internal      Hard 403 for everyone, every spelling.
   /fake          403; unknown paths behave like a catch-all site.
   /member        200 member page only with session=letmein.
@@ -194,6 +195,13 @@ class MockAclHandler(BaseHTTPRequestHandler):
         if path == "/vault":
             if self.headers.get("X-Forwarded-For") == "127.0.0.1":
                 return _send(self, 200, VAULT)
+            return _send(self, 403, F403)
+        if path == "/querycanary":
+            # planted flaw: a rule engine matching the full request
+            # URI lets the request through when any query string is
+            # present, while the application serves the same resource
+            if "?" in self.path:
+                return _send(self, 200, CANARY)
             return _send(self, 403, F403)
         if path == "/console":
             return _send(self, 403, F403)

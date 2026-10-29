@@ -63,7 +63,7 @@ def rfi_url(ctx, url):
                   f"Parameter '{name}' includes and EXECUTES/EMBEDS a remote "
                   f"file from an attacker server (OOB content in response).",
                   proof=f"OOB content marker OOBMARK-{token} embedded in response",
-                  param=name, resp=r, cwe="CWE-98")
+                  param=name, resp=r, cwe="CWE-98", payload=probe)
             return
 
 
@@ -100,7 +100,7 @@ def nosql_url(ctx, url):
                      "operator was evaluated."),
                   proof=hit or f"similarity to baseline: {sim:.2f}",
                   param=name, resp=r, confidence="Needs manual confirmation",
-                  cwe="CWE-943")
+                  cwe="CWE-943", payload=f"{name}[$ne]=wscaninvalid")
             return
 
 
@@ -116,7 +116,7 @@ def ldap_url(ctx, url):
                 F.add("Medium", "Possible LDAP Injection", url,
                       f"Wildcard probe in parameter '{name}' triggers an LDAP "
                       f"error/signature ({hit}).",
-                      proof=hit, param=name, resp=r,
+                      proof=hit, param=name, resp=r, payload=probe,
                       confidence="Needs manual confirmation", cwe="CWE-90")
                 return
 

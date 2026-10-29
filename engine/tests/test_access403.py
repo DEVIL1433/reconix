@@ -264,6 +264,18 @@ class CatalogTests(unittest.TestCase):
             self.assertIn(g, groups)
         self.assertTrue(all(t["hypothesis"] for t in techs))
 
+    def test_query_string_append_present(self):
+        techs = self._catalog()
+        q = [x for x in techs
+             if "query-string append" in x["label"]]
+        self.assertEqual(len(q), 1)
+        self.assertTrue(q[0]["url"].endswith("/canary?wscan=1"))
+        self.assertEqual(q[0]["group"], "path")
+        self.assertTrue(q[0]["hypothesis"])
+        guard = q[0]["guard"]
+        self.assertTrue(guard["url"].endswith(
+            "/reconix-nonexistent-7391?wscan=1"))
+
     def test_group_toggles(self):
         techs = self._catalog(checks={"ip": False, "host": False,
                                       "protocol": False})
@@ -391,6 +403,16 @@ class DiagnosticsIntegration(IntegrationBase):
                if r["classification"] == "bypass_verified"]
         self.assertTrue(any("trailing slash" in r["technique"]
                             for r in ver))
+
+    def test_querycanary_verified_via_query_string(self):
+        url = self.main + "/querycanary"
+        run = self.run_diag([url])
+        ver = [r for r in self.by_url(run, url)
+               if r["classification"] == "bypass_verified"]
+        self.assertTrue(any("query-string append" in r["technique"]
+                            for r in ver))
+        self.assertTrue(all(
+            r["verify"]["observations"] == 3 for r in ver))
 
     def test_internal_hard_403_no_verified(self):
         url = self.main + "/internal"

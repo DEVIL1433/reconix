@@ -10,7 +10,7 @@ from http.cookiejar import CookieJar
 
 from .calibrate import waf_blocked
 
-USER_AGENT = "Reconix/3.21 (authorized security testing)"
+USER_AGENT = "Reconix/3.28 (authorized security testing)"
 TIMEOUT = 12
 
 _ctx = ssl.create_default_context()
@@ -48,6 +48,13 @@ def ensure_url_scheme(url, probe=True, timeout=6):
     connection/SSL/timeout failures fall back to http. URLs that
     already carry a scheme pass through untouched."""
     url = (url or "").strip()
+    # Double-paste guard: mobile paste often duplicates the whole URL
+    # back-to-back ('URLURL'), which then poisons the stored target and
+    # every finding URL. Collapse only an exact two-identical-halves
+    # string; anything else passes through untouched.
+    n = len(url)
+    if n >= 8 and n % 2 == 0 and url[:n // 2] == url[n // 2:]:
+        url = url[:n // 2]
     if not url or "://" in url:
         return url
     if not probe:

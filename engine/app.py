@@ -540,7 +540,7 @@ def scheduler_loop():
 
 
 UI = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Reconix 3.21 — Vulnerability Scanner & Attack Surface</title>
+<title>Reconix 3.28 — Vulnerability Scanner & Attack Surface</title>
 <style>
 :root{--bg:#0a0a0b;--panel:#101012;--panel2:#141416;--line:#232326;--txt:#dcdce0;
 --mut:#8e8e96;--crit:#f4534a;--high:#f59e0b;--med:#eab308;--low:#22c55e;--info:#8e8e96;--navy:#f2f2f4}
@@ -561,9 +561,9 @@ nav .badge{background:#26262a;color:#e4e4e7;font-size:11px;border-radius:9px;pad
 .wrap{flex:1;min-width:0}
 .topbar{display:flex;align-items:center;gap:12px;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 22px;position:sticky;top:0;z-index:5}
 .topbar h2{margin:0;font-size:17px;color:var(--navy)}
-main{max-width:1240px;margin:0 auto;padding:20px 22px}
+main{max-width:1240px;margin:0 auto;padding:24px 26px}
 .view{display:none}.view.active{display:block}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 input,select,button{font-family:inherit}
 input[type=text],input[type=password],select,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:8px;font-size:14px}
@@ -577,9 +577,9 @@ button:disabled{opacity:.5;cursor:wait}
 .stats{display:flex;gap:10px;flex-wrap:wrap}
 .stat{flex:1;min-width:100px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center}
 .stat b{font-size:26px;display:block;font-weight:700;color:var(--navy)}
-.finding{border:1px solid var(--line);border-left-width:3px;border-radius:8px;margin:8px 0;background:#0c0c0e}
-.finding summary{cursor:pointer;padding:12px 14px;list-style:none;font-size:15px}
-.finding .body{padding:0 14px 14px}
+.finding{border:1px solid var(--line);border-left-width:3px;border-radius:8px;margin:12px 0;background:#0c0c0e}
+.finding summary{cursor:pointer;padding:14px 16px;list-style:none;font-size:15px}
+.finding .body{padding:0 16px 16px}
 .sev{font-weight:700;text-transform:uppercase;font-size:11px;padding:2px 8px;border-radius:20px;letter-spacing:.5px;border:1px solid transparent}
 .crit{background:rgba(244,83,74,.13);color:#f4534a;border-color:rgba(244,83,74,.45)}.high{background:rgba(245,158,11,.12);color:#f59e0b;border-color:rgba(245,158,11,.4)}.med{background:rgba(234,179,8,.12);color:#eab308;border-color:rgba(234,179,8,.4)}.low{background:rgba(34,197,94,.12);color:#4ade80;border-color:rgba(34,197,94,.4)}.info{background:rgba(142,142,150,.12);color:#a1a1aa;border-color:rgba(142,142,150,.35)}
 .conf{color:var(--mut);font-size:12px;margin-left:8px}
@@ -614,7 +614,7 @@ textarea{width:100%;font-family:'Cascadia Code',Consolas,monospace;font-size:12.
 .modebtn{padding:7px 16px;border:1px solid var(--line);background:var(--panel2);border-radius:8px;cursor:pointer;font-weight:600;color:var(--txt)}
 .modebtn.on{background:#fafafa;color:#0a0a0b;border-color:#fafafa}
 pre .hk{color:var(--navy);font-weight:700}
-.secttl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px}
+.secttl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:22px 0 10px;border-bottom:1px solid var(--line);padding-bottom:5px}
 .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media(max-width:860px){.fgrid{grid-template-columns:1fr}}
 .fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin-bottom:5px}
@@ -628,17 +628,18 @@ pre .hk{color:var(--navy);font-weight:700}
 .howto{font-size:13px;color:var(--mut);margin:6px 0 2px;padding-left:18px}
 .howto li{margin:4px 0}
 .sumchip{display:inline-block;border-radius:11px;padding:3px 11px;font-size:12px;font-weight:700;color:#fff;margin:0 6px 6px 0}
-.jrow{display:grid;grid-template-columns:132px 1fr;gap:16px;padding:13px 0;border-top:1px solid var(--line);align-items:start}
+.jrow{display:grid;grid-template-columns:132px 1fr;gap:18px;padding:16px 0;border-top:1px solid var(--line);align-items:start}
 .jrow:first-child{border-top:none;padding-top:4px}
 .jlab{font-size:11px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:#e4e4e7;padding-top:3px}
 .jlab span{display:block;color:#5b5b63;font-weight:500;letter-spacing:.3px;text-transform:none;margin-top:3px;font-size:11.5px}
-.jtxt{font-size:14px;line-height:1.6;color:var(--txt)}
+.jtxt{font-size:14px;line-height:1.65;color:var(--txt)}
 .jtxt .mono{font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;color:#e4e4e7;word-break:break-all}
 .atk{list-style:none;margin:0;padding:0}
 .atk li{font-size:14px;line-height:1.55;padding:3px 0 3px 16px;position:relative;color:var(--txt)}
 .atk li:before{content:"";position:absolute;left:0;top:10px;width:5px;height:5px;border-radius:50%;background:#fafafa}
 .jfix{font-size:14px;line-height:1.6;color:#a3e635}
-.jproof{font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;line-height:1.6;color:#b9b9c0;white-space:pre-wrap;word-break:break-word}
+.jproof{font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;line-height:1.65;color:#b9b9c0;white-space:pre-wrap;word-break:break-word}
+.jpayload{font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;line-height:1.65;color:#e4e4e7;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px 11px;white-space:pre-wrap;word-break:break-word}
 .tech{margin-top:8px;border-top:1px solid var(--line);padding-top:10px}
 .tech>summary{cursor:pointer;color:#71717a;font-size:12.5px;list-style:none}
 @media(max-width:860px){.jrow{grid-template-columns:1fr;gap:5px}}
@@ -655,7 +656,7 @@ pre .hk{color:var(--navy);font-weight:700}
 
 </style></head><body>
 <aside>
-  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.21</span></div>
+  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.28</span></div>
   <div class="tagline">DISCOVER · SCAN · SECURE</div>
   <nav id="nav">
     <button data-view="dashboard" class="active" onclick="show('dashboard')">Dashboard</button>
@@ -692,6 +693,7 @@ pre .hk{color:var(--navy);font-weight:700}
     <select id="profile"><option value="full">Full scan (incl. external recon)</option><option value="recon">External recon only</option><option value="quick">Quick</option><option value="api">API</option><option value="passive">Passive only</option></select>
     <select id="project"><option value="">No project</option></select>
     <button id="scanBtn" onclick="startScan()">&#9654; Start Scan</button>
+    <button id="vaptBtn" onclick="startVapt()" title="Full profile scan; the PDF report downloads automatically when it finishes">&#9654; Run Full VAPT</button>
     <button id="stopBtn" class="danger hidden" onclick="stopScan()">&#9632; Stop</button>
   </div>
   <div class="row" style="margin-top:10px">
@@ -995,6 +997,7 @@ function show(v){document.querySelectorAll('.view').forEach(s=>s.classList.remov
 async function startScan(){
   const target=document.getElementById('target').value.trim(); if(!target) return;
   document.getElementById('scanBtn').disabled=true;
+  const _vb0=document.getElementById('vaptBtn'); if(_vb0) _vb0.disabled=true;
   document.getElementById('stopBtn').classList.remove('hidden');
   const body={target,profile:document.getElementById('profile').value,
     project:document.getElementById('project').value,
@@ -1024,6 +1027,12 @@ async function startScan(){
   if(j.state==='queued') document.getElementById('phase').textContent='Queued — the scan slots are busy; this scan starts automatically when one frees up.';
   timer=setInterval(poll,1500); poll();
 }
+function startVapt(){
+  const t=document.getElementById('target').value.trim(); if(!t) return;
+  document.getElementById('profile').value='full';
+  window._vaptAutoPdf=true;
+  startScan();
+}
 async function stopScan(){ if(cur) await fetch('/api/scans/'+cur+'/stop',{method:'POST'}); }
 async function poll(){
   if(!cur) return;
@@ -1041,6 +1050,10 @@ async function poll(){
       renderResults(j.result?j.result.target:j.target, fs, j.result?j.result.counts:null, j.result);}
   }
   if(j.status!=='running'&&j.status!=='queued'){clearInterval(timer);document.getElementById('scanBtn').disabled=false;
+    const _vb=document.getElementById('vaptBtn'); if(_vb) _vb.disabled=false;
+    if(window._vaptAutoPdf&&j.status==='done'){window._vaptAutoPdf=false;
+      document.getElementById('phase').textContent='Full VAPT done \u2014 PDF report downloading.';
+      const a=document.createElement('a'); a.href='/api/scans/'+cur+'/pdf'; a.download=''; document.body.appendChild(a); a.click(); a.remove();}
     document.getElementById('stopBtn').classList.add('hidden');loadHistory();loadDiffOptions();loadAssets();}
 }
 function badgePills(f){
@@ -1052,6 +1065,7 @@ function simpleRows(f, whereHtml){
   const rows=[];
   if(f.about||f.detail) rows.push(`<div class="jrow"><div class="jlab">What<span>the vulnerability</span></div><div class="jtxt">${esc(f.about||f.detail)}</div></div>`);
   if(whereHtml) rows.push(`<div class="jrow"><div class="jlab">Where</div><div class="jtxt">${whereHtml}</div></div>`);
+  if(f.payload) rows.push(`<div class="jrow"><div class="jlab">Payload<span>the exact input used</span></div><div class="jpayload">${esc(f.payload)}</div></div>`);
   if(f.detail&&f.about) rows.push(`<div class="jrow"><div class="jlab">Why<span>it is vulnerable</span></div><div class="jtxt">${esc(f.detail)}</div></div>`);
   if(f.attacks&&f.attacks.length) rows.push(`<div class="jrow"><div class="jlab">Attacks<span>what can be done</span></div><ul class="atk">${f.attacks.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`);
   if(f.proof) rows.push(`<div class="jrow"><div class="jlab">Proof</div><div class="jproof">${esc(f.proof)}</div></div>`);
@@ -1645,7 +1659,7 @@ loadHistory(); loadProjects(); loadSchedules(); loadRepeatHistory(); loadRules()
 </body></html>"""
 
 
-# --- Mobile app shell (Reconix 3.21) -------------------------------------
+# --- Mobile app shell (Reconix 3.28) -------------------------------------
 # Injected into the UI only when the request comes from the Android app
 # (User-Agent contains "ReconixAndroid"). Desktop/laptop UI is untouched.
 MOBILE_HEAD = r"""
@@ -1675,7 +1689,7 @@ label{font-size:14px}
 .grid2,.fgrid{grid-template-columns:1fr!important}
 #view-scanner #target{flex:1 1 100%;font-size:16px;padding:13px}
 #view-scanner #profile,#view-scanner #project{flex:1 1 44%}
-#scanBtn{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700}
+#scanBtn,#vaptBtn{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700}
 #stopBtn{flex:1 1 100%}
 .pbar{height:10px;border-radius:6px}
 .pmeta{font-size:15px}
@@ -1686,7 +1700,8 @@ label{font-size:14px}
 #rxRing svg{transform:rotate(-90deg)}
 #rxRing .rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #rxRing .rp{font-size:31px;font-weight:800;color:var(--navy)}
-#rxRing .rph{font-size:10.5px;letter-spacing:1.4px;color:var(--mut);text-transform:uppercase;max-width:130px;text-align:center}
+#resultsCard h3,.finding summary small,.finding .mono{overflow-wrap:anywhere;word-break:break-word}
+#rxRing .rph{font-size:10.5px;letter-spacing:1.4px;line-height:1.45;color:var(--mut);text-transform:uppercase;max-width:130px;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .finding{padding:15px}
 .jrow{grid-template-columns:1fr;gap:4px;padding:11px 0}
 .sev{font-size:11.5px;padding:4px 10px}
@@ -1730,7 +1745,11 @@ MOBILE_BODY = r"""
 (function(){
   var MAIN={dashboard:1,scanner:1,findings:1,history:1};
   window.rxMore=function(open){document.getElementById('rxMoreSheet').classList.toggle('open',!!open);};
-  window.rxGo=function(v){rxMore(false);show(v);rxSync(v);window.scrollTo(0,0);};
+  window.rxGo=function(v){rxMore(false);show(v);rxSync(v);window.scrollTo(0,0);
+    if(window._lastRx!==v){try{history.pushState({rx:v},'', '#'+v);}catch(e){}window._lastRx=v;}};
+  window.addEventListener('popstate',function(e){
+    var v=(e.state&&e.state.rx)||''; if(!v){show('dashboard');rxSync('dashboard');window._lastRx='dashboard';return;}
+    show(v);rxSync(v);window._lastRx=v;});
   function rxSync(v){
     document.querySelectorAll('#rxTabs button').forEach(function(b){
       b.classList.toggle('on', b.dataset.rx===v || (b.dataset.rx==='more' && !MAIN[v]));
@@ -1755,6 +1774,7 @@ MOBILE_BODY = r"""
       document.getElementById('rxPct').textContent=pct+'%';
       document.getElementById('rxArc').style.strokeDashoffset=C-(C*pct/100);
       var ph=(document.getElementById('phase')||{}).textContent||'';
+      if(ph.indexOf('Target ')===0){var hm=ph.match(/Target https?:\/\/([^\/\s]+)/);ph=hm?hm[1]:'Starting scan';}
       document.getElementById('rxPhase').textContent=ph;
     },600);
   }
@@ -1923,6 +1943,7 @@ class Handler(BaseHTTPRequestHandler):
                 html = html.replace("</body>", MOBILE_BODY + "</body>", 1)
             data = html.encode()
             self.send_response(200)
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
@@ -2520,7 +2541,7 @@ def main():
     ensure_api_token()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Reconix 3.21 UI -> http://127.0.0.1:{args.port}")
+    print(f"Reconix 3.28 UI -> http://127.0.0.1:{args.port}")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

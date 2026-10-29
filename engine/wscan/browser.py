@@ -34,6 +34,15 @@ def _seed_cookies(context, cookie_header, base):
             pass
 
 
+def _probe_payload(probe_url, name):
+    """Recover the injected value from a probe URL built by with_param."""
+    if name == "(fragment)":
+        return "#" + probe_url.split("#", 1)[1] if "#" in probe_url else ""
+    q = urllib.parse.parse_qs(urllib.parse.urlsplit(probe_url).query)
+    v = q.get(name)
+    return v[0] if v else ""
+
+
 def browser_scan(ctx, page_urls, shots_dir=None, max_pages=12):
     """Returns {visited, extra_links, screenshots}. Emits findings for
     browser-confirmed XSS (payload actually executed in Chromium)."""
@@ -134,7 +143,8 @@ def browser_scan(ctx, page_urls, shots_dir=None, max_pages=12):
                             proof=f"Chromium executed payload; "
                                   f"data-wsx='{marker}'",
                             param=name if name != "(fragment)" else "",
-                            resp=None, cwe="CWE-79")
+                            resp=None, cwe="CWE-79",
+                            payload=_probe_payload(probe_url, name))
                         if f and shot:
                             f["screenshot"] = shot
                         break

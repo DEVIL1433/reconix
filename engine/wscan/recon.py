@@ -85,7 +85,7 @@ def subdomain_enum(domain, timeout=4):
     try:
         req = urllib.request.Request(
             f"https://crt.sh/?q=%25.{domain}&output=json",
-            headers={"User-Agent": "Reconix/3.21"})
+            headers={"User-Agent": "Reconix/3.28"})
         with urllib.request.urlopen(req, timeout=8) as r:
             for entry in json.loads(r.read().decode(errors="replace")):
                 for name in entry.get("name_value", "").split("\n"):

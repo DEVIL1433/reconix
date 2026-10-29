@@ -1420,6 +1420,18 @@ class Tester:
                     "spellings of the same resource must be authorized "
                     "exactly like the canonical path.",
                     guard=G(with_path(cvariants.get(label, cpath))))
+            # Query-string append: some rule engines match the full
+            # request URI, so an appended query can break the rule
+            # match while the application still serves the resource.
+            add("path", "path-normalization",
+                "query-string append (?wscan=1)",
+                urllib.parse.urlunsplit(parts._replace(query="wscan=1")),
+                "If enforcement matches the full request URI, an "
+                "appended query string can break the rule match while "
+                "the application still serves the same resource.",
+                guard=G(urllib.parse.urlunsplit(
+                    urllib.parse.urlsplit(control)._replace(
+                        query="wscan=1"))))
             # ---- H (cache). cache-deception spellings live here ----
             if self.groups["cache"]:
                 for suffix in ("/reconix-cache.css", ".css"):

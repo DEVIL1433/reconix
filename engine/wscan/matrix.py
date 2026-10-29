@@ -24,6 +24,18 @@ def _looks_restricted(url, body):
     return any(w in low for w in RESTRICTED_WORDS) and "login" not in path
 
 
+ADMIN_PATH = ("/admin", "/manage", "/console", "/backend", "/dashboard")
+ADMIN_WORDS = ("admin panel", "control panel", "user management")
+
+
+def _looks_admin(url, body):
+    path = urllib.parse.urlsplit(url).path.lower()
+    if any(p in path for p in ADMIN_PATH):
+        return True
+    text = re.sub(r"<a\b[^>]*>.*?</a>", "", body or "", flags=re.I | re.S)
+    return any(w in text.lower() for w in ADMIN_WORDS) and "login" not in path
+
+
 def build(ctx, pages, limit=60):
     F = ctx.findings
     sessions = [("anonymous", Client(proxy=ctx.opts.get("proxy"))),
@@ -107,10 +119,10 @@ def build(ctx, pages, limit=60):
                         f"{_sim(ctx, bodies.get('anonymous', ''), user_body):.2f}, "
                         f"both HTTP 200, {len(bodies.get('anonymous', ''))} bytes",
                   confidence="Needs manual confirmation", cwe="CWE-862")
-        # non-admin reaching admin-area content
-        path = urllib.parse.urlsplit(url).path.lower()
-        if admin_client is not None and "/admin" in path:
-            admin_body = bodies.get("admin", "")
+        # non-admin reaching admin-area content (any admin-area path,
+        # not just /admin -- /manage, /console, /backend, /dashboard too)
+        admin_body = bodies.get("admin", "")
+        if admin_client is not None and _looks_admin(url, admin_body):
             for label in ("primary", "second user"):
                 if label in bodies and \
                         row["results"][label]["status"] == 200 and \

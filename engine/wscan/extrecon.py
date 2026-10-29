@@ -23,7 +23,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-UA = {"User-Agent": "Reconix/3.21 (authorized external recon)"}
+UA = {"User-Agent": "Reconix/3.28 (authorized external recon)"}
 DOH_ENDPOINTS = ["https://dns.google/resolve",
                  "https://cloudflare-dns.com/dns-query"]
 MULTI_SUFFIX = {"co.uk", "org.uk", "com.au", "net.au", "co.in", "firm.in",

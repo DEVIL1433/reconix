@@ -101,7 +101,8 @@ class Findings:
         self.suppressed_items = []
 
     def add(self, severity, title, url, detail, proof="", param="",
-            confidence="Confirmed", resp=None, cwe="", dedupe_key=None):
+            confidence="Confirmed", resp=None, cwe="", dedupe_key=None,
+            payload=""):
         key = dedupe_key or (title, url, param)
         with self.lock:
             if key in self._seen:
@@ -120,6 +121,7 @@ class Findings:
                 "severity": severity, "confidence": confidence,
                 "title": title, "cwe": cwe, "url": url, "param": param,
                 "detail": detail, "about": explain(title),
+                "payload": (payload or "")[:1500],
                 "proof": (proof or "")[:1500],
                 "remediation": remediation_for(title),
                 "status_code": resp.status if resp else None,
