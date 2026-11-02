@@ -1,4 +1,28 @@
-# Reconix 3.31 — Deep Web Vulnerability Scanner + EASM
+**New in 4.2 (2026-11-02):** a phone-shell redesign, built from a
+phone mockup. The Android app's Home now has a risk-gauge ring (number
++ Low/Medium/High/Critical band) with a findings-by-severity breakdown,
+Scan has mode pills bound to the real profile select, Findings has
+severity filter pills with real counts plus finding cards carrying a
+path tag and a one-line plain description, and the More menu is grouped
+— Assess (VAPT, Attack surface, 403 assessment, HTTP repeater),
+Automate (Schedules, Custom rules), App (Settings). The VAPT tab stays
+separate (not merged into Scan); the mint accent is phone-only and the
+desktop UI is unchanged. Suite still 292/292.
+
+Since the last published engine (3.31), the unpublished range is: **3.32**
+— four AI features, all local-only via Ollama and off by default, under
+the rule that AI suggests and the engine proves (report writing, payload
+ideas, logic-test ideas, finding ranking); **3.33** — the scanner view
+split into SCAN and VAPT SCAN cards; **4.0** — fourteen features in
+full (subdomain takeover, JS secrets, GraphQL, WebSocket, CMS packs,
+Nuclei templates, exposed cloud storage, CVE matching, scan diff,
+Word/Excel/JSON/Jira/GitHub reports, false-positive marking with reason,
+custom check builder, login recorder, AI phase 2) plus a major
+professional redesign; **4.1** — Scan and VAPT as entirely separate
+tabs. Proof-before-reporting is untouched throughout: Nuclei matches
+and CVE advisories are labelled advisory-only, never findings.
+
+# Reconix 4.2 — Deep Web Vulnerability Scanner + EASM
 
 **New in 3.31 (weekly improvement, 2026-11-02):** two genuinely missing
 checks, both proof-guarded. **Third-party Subresource Integrity** —

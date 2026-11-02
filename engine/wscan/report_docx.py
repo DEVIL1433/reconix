@@ -59,6 +59,14 @@ def to_docx(result):
     body.append(_p("Executive summary", "Heading1"))
     for line in executive_summary(result).split("\n"):
         body.append(_p(line))
+    # Summary counts (explicit table, matching the PDF summary counts).
+    body.append(_p("Summary counts", "Heading1"))
+    counts = result.get("counts") or {}
+    count_rows = [["Severity", "Count"]]
+    for sev in ("Critical", "High", "Medium", "Low", "Info"):
+        count_rows.append([sev, str(counts.get(sev, 0))])
+    count_rows.append(["Total", str(len(result.get("findings", [])))])
+    body.append(_table(count_rows))
     body.append(_p("Methodology", "Heading1"))
     body.append(_p("Automated assessment with Reconix: reconnaissance "
                    "(DNS, ports, TLS, technology fingerprinting), crawling, "
@@ -84,13 +92,60 @@ def to_docx(result):
         if f.get("about"):
             body.append(_p(f"What is it? {f['about']}"))
         body.append(_p(f["detail"]))
+        if f.get("confidence"):
+            body.append(_p(f"Confidence: {f['confidence']}"))
         if f.get("proof"):
-            body.append(_p(f"Proof: {f['proof']}"))
+            body.append(_p(f"Evidence: {f['proof']}"))
         if f.get("payload"):
             body.append(_p(f"Payload: {f['payload']}"))
         body.append(_p(f"Remediation: {f['remediation']}"))
         if f.get("poc_curl"):
             body.append(_p(f"PoC (curl): {f['poc_curl']}"))
+    # ---- 4.0 advisory sections (never findings, never counts/risk) --
+    _cms_adv = ((result.get("cms") or {}).get("advisories") or [])
+    if _cms_adv:
+        body.append(_p("CMS advisories (not vulnerabilities)", "Heading1"))
+        for _a in _cms_adv:
+            body.append(_p(f"{_a.get('title', 'CMS advisory')}: "
+                           f"{_a.get('detail', '')}"))
+    if result.get("nuclei") is not None:
+        try:
+            from .nuclei import format_nuclei_section as _fn
+            body.append(_p("Nuclei template matches (Nuclei-sourced, "
+                           "not engine-proven)", "Heading1"))
+            for _ln in _fn(result["nuclei"]):
+                body.append(_p(_ln))
+        except Exception:
+            pass
+    if result.get("cve_advisories") is not None:
+        try:
+            from .cve import format_cve_section as _fc
+            body.append(_p("CVE advisories (informational only — "
+                           "not findings)", "Heading1"))
+            for _ln in _fc(result["cve_advisories"]):
+                body.append(_p(_ln))
+        except Exception:
+            pass
+    if result.get("excluded_false_positives"):
+        body.append(_p("Excluded as false positive (reason)", "Heading1"))
+        for _e in result["excluded_false_positives"]:
+            body.append(_p(f"{_e.get('title', '')} — {_e.get('url', '')} | "
+                           f"reason: {_e.get('exclusion_reason', '')} | "
+                           f"marked by {_e.get('exclusion_marked_by', '')} "
+                           f"at {_e.get('exclusion_marked_at', '')}"))
+    if result.get("ai_narrative"):
+        body.append(_p("AI narrative (local model — written from proven "
+                       "findings only)", "Heading1"))
+        body.append(_p(result["ai_narrative"]))
+    mx = result.get("permission_matrix") or []
+    if mx:
+        body.append(_p("Permission matrix (who can see what)", "Heading1"))
+        for row in mx:
+            parts = []
+            for label, v in (row.get("results") or {}).items():
+                parts.append(f"{label}: {v.get('status', '—')} "
+                             f"({v.get('length', 0)} B)")
+            body.append(_p(f"{row.get('url', '')} | " + " | ".join(parts)))
     body.append(_p("Remediation tracker", "Heading1"))
     rows = [["#", "Finding", "Severity", "Status", "Owner", "Target date"]]
     for i, f in enumerate(result.get("findings", []), 1):

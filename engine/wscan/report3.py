@@ -463,8 +463,13 @@ def _wrap(text, width=96):
 
 def to_pdf(result):
     """Minimal valid PDF: summary page + one block per finding."""
-    lines = ["Reconix 3.31 - Vulnerability Report", ""]
+    lines = ["Reconix 4.2 - Vulnerability Report", ""]
     lines += _wrap(executive_summary(result))
+    if result.get("ai_narrative"):
+        lines += ["", "AI narrative (local model — written from proven "
+                       "findings only)", ""]
+        lines += _wrap(result["ai_narrative"])
+        lines += [""]
     lines += ["", "=" * 90, ""]
     for f in result.get("findings", []):
         lines.append(f"[{f['severity']}] {f['title']}  ({f.get('cwe','')})")
@@ -482,6 +487,72 @@ def to_pdf(result):
             lines += _wrap(f"Proof: {f['proof']}")
         lines += _wrap(f"Remediation: {f['remediation']}")
         lines.append("")
+    # ---- 4.0 advisory sections (never findings, never counts/risk) --
+    _cms = result.get("cms") or {}
+    _cms_adv = _cms.get("advisories") or []
+    if _cms_adv:
+        lines += ["", "CMS advisories (not vulnerabilities)", ""]
+        for _a in _cms_adv:
+            lines += _wrap(f"- {_a.get('title', 'CMS advisory')}: "
+                           f"{_a.get('detail', '')}")
+        lines.append("")
+    _nuc = result.get("nuclei")
+    if _nuc is not None:
+        try:
+            from .nuclei import format_nuclei_section as _fmt_nuc
+            lines += [""] + _wrap("\n".join(_fmt_nuc(_nuc))) + [""]
+        except Exception:
+            pass
+    _cve = result.get("cve_advisories")
+    if _cve is not None:
+        try:
+            from .cve import format_cve_section as _fmt_cve
+            lines += [""] + _wrap("\n".join(_fmt_cve(_cve))) + [""]
+        except Exception:
+            pass
+    _diff = result.get("scan_comparison")
+    if _diff is None and result.get("diff"):
+        try:
+            from .scandiff import diff_to_report_section as _diff_sec
+            _diff = _diff_sec(result["diff"])
+        except Exception:
+            _diff = None
+    if _diff:
+        lines += ["", "Scan comparison", ""]
+        if _diff.get("warning"):
+            lines += _wrap(f"Warning: {_diff['warning']}")
+        if _diff.get("summary"):
+            lines += _wrap(str(_diff["summary"]))
+        for _key in ("new", "changed", "fixed", "unchanged"):
+            _rows = (_diff.get("sections") or {}).get(_key) or []
+            if _rows:
+                lines.append(f"{_key.capitalize()} ({len(_rows)}):")
+                for _r in _rows:
+                    lines += _wrap(f"  [{_r.get('severity_new') or _r.get('severity_old') or ''}] "
+                                   f"{_r.get('title', '')} — {_r.get('url', '')}")
+        lines.append("")
+    _excl = result.get("excluded_false_positives") or []
+    if _excl:
+        lines += ["", "Excluded as false positive (reason)", ""]
+        _counts = result.get("exclusion_counts") or {}
+        if _counts:
+            lines.append(f"Total: {_counts.get('total', '')}, kept: "
+                         f"{_counts.get('kept', '')}, excluded: "
+                         f"{_counts.get('excluded', '')}")
+        for _e in _excl:
+            lines += _wrap(f"- {_e.get('title', '')} — {_e.get('url', '')}"
+                           + (f" (param: {_e.get('param', '')})"
+                              if _e.get("param") else "")
+                           + f" | reason: {_e.get('exclusion_reason', '')}"
+                           + (f" | marked by {_e.get('exclusion_marked_by', '')}"
+                              if _e.get("exclusion_marked_by") else "")
+                           + (f" at {_e.get('exclusion_marked_at', '')}"
+                              if _e.get("exclusion_marked_at") else ""))
+        lines.append("")
+    # WebSocket findings have resp=None, so they carry no curl PoC and
+    # no raw response by construction; JS-secret findings likewise
+    # carry only masked proof. to_pdf never renders poc_curl or a raw
+    # response for any finding, so those rules hold structurally here.
     mx = result.get("permission_matrix") or []
     if mx:
         lines += ["", "Permission matrix (who can see what)", ""]

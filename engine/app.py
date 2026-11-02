@@ -33,6 +33,40 @@ from wscan.engine import diff_scans, run_scan   # noqa: E402
 from wscan.report3 import attacks_for, to_csv, to_pdf        # noqa: E402
 from wscan.report_docx import to_docx          # noqa: E402
 from wscan.retest import retest_finding        # noqa: E402
+# 4.0 integrations (all stdlib; a broken optional module must never
+# take the scanner down, so each import is guarded like access403).
+try:
+    from wscan import ai as _ai_mod
+except Exception:
+    _ai_mod = None
+try:
+    from wscan import customchecks as _cc_mod
+except Exception:
+    _cc_mod = None
+try:
+    from wscan import exporters as _exporters
+except Exception:
+    _exporters = None
+try:
+    from wscan import falsepositives as _fp_mod
+except Exception:
+    _fp_mod = None
+try:
+    from wscan import loginrec as _loginrec
+except Exception:
+    _loginrec = None
+try:
+    from wscan import nuclei as _nuclei_mod
+except Exception:
+    _nuclei_mod = None
+try:
+    from wscan import scandiff as _scandiff
+except Exception:
+    _scandiff = None
+try:
+    from wscan import ticketing as _ticket_mod
+except Exception:
+    _ticket_mod = None
 
 try:
     from wscan import access403 as _a403   # standalone 403 Tester module
@@ -282,7 +316,7 @@ def compute_changes(target, result, scan_id=None):
 SCAN_QUEUE = []          # [{scan_id, target, opts, project}]
 QUEUE_LOCK = threading.Lock()
 MAX_CONCURRENT_SCANS = 2
-_SECRET_OPT_KEYS = ("cookie", "cookie_b", "cookie_admin")
+_SECRET_OPT_KEYS = ("cookie", "cookie_b", "cookie_admin", "nvd_api_key")
 
 
 def _redact_opts(opts):
@@ -294,6 +328,10 @@ def _redact_opts(opts):
             continue
         if k in _SECRET_OPT_KEYS:
             out[k] = "__stored__" if v else v
+        elif k == "recorded_session":
+            # Name only by construction (the picker sends a session
+            # name, never session material); stored verbatim as a name.
+            out[k] = v
         elif k == "auth" and isinstance(v, dict):
             a = dict(v)
             if a.get("password"):
@@ -540,7 +578,7 @@ def scheduler_loop():
 
 
 UI = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Reconix 3.31 — Vulnerability Scanner & Attack Surface</title>
+<title>Reconix 4.2 — Vulnerability Scanner & Attack Surface</title>
 <style>
 :root{--bg:#0a0a0b;--panel:#101012;--panel2:#141416;--line:#232326;--txt:#dcdce0;
 --mut:#8e8e96;--crit:#f4534a;--high:#f59e0b;--med:#eab308;--low:#22c55e;--info:#8e8e96;--navy:#f2f2f4}
@@ -615,6 +653,9 @@ textarea{width:100%;font-family:'Cascadia Code',Consolas,monospace;font-size:12.
 .modebtn.on{background:#fafafa;color:#0a0a0b;border-color:#fafafa}
 pre .hk{color:var(--navy);font-weight:700}
 .secttl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:22px 0 10px;border-bottom:1px solid var(--line);padding-bottom:5px}
+#view-scanner .secttl,#view-vapt .secttl{margin:0 0 4px;border-bottom:none;padding-bottom:0}
+#view-vapt .vapt-includes{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:8px}
+#view-vapt .vapt-includes li{font-size:13px;color:#d4d4d8;background:#1b1b1e;border:1px solid #2a2a2e;border-radius:6px;padding:6px 10px}
 .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media(max-width:860px){.fgrid{grid-template-columns:1fr}}
 .fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin-bottom:5px}
@@ -653,14 +694,26 @@ pre .hk{color:var(--navy);font-weight:700}
 .toast{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--low);color:var(--txt);padding:11px 14px;border-radius:9px;font-size:13.5px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:1;transition:opacity .3s}
 .toast.err{border-left-color:var(--crit)}
 .toast.out{opacity:0}
+main{padding:28px 30px}
+.card h3{letter-spacing:.01em}
+.stat b{font-variant-numeric:tabular-nums}
+.advblock{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:10px 0;font-size:13.5px;line-height:1.6}
+.advblock h4{margin:2px 0 8px}
+.advblock .lbl{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin-right:6px}
+.tickbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0}
+.tickbar input[type=text],.tickbar input[type=password]{min-width:160px}
+.recstep{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.recstep select,.recstep input{flex:1;min-width:120px}
+@media(max-width:860px){main{padding:16px 12px}.card{padding:14px}.tickbar{flex-direction:column;align-items:stretch}}
 
 </style></head><body>
 <aside>
-  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.31</span></div>
+  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">4.2</span></div>
   <div class="tagline">DISCOVER · SCAN · SECURE</div>
   <nav id="nav">
     <button data-view="dashboard" class="active" onclick="show('dashboard')">Dashboard</button>
-    <button data-view="scanner" onclick="show('scanner')">Scanner</button>
+    <button data-view="scanner" onclick="show('scanner')">Scan</button>
+    <button data-view="vapt" onclick="show('vapt')">VAPT</button>
     <button data-view="surface" onclick="show('surface')">Attack Surface <span class="badge" id="sfBadge">0</span></button>
     <button data-view="findings" onclick="show('findings')">Findings</button>
     <button data-view="repeater" onclick="show('repeater')">Repeater</button>
@@ -674,6 +727,23 @@ pre .hk{color:var(--navy);font-weight:700}
 <div class="wrap">
 <div class="topbar"><h2 id="viewTitle">Dashboard</h2><span class="muted" id="topSub">Proof-based scanning with external reconnaissance</span></div>
 <main>
+<div id="live" class="hidden" style="margin-top:12px">
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+    <div class="pmeta"><b id="ppct">0%</b> <span id="plabel"></span></div>
+    <div><b id="phase">…</b></div><div class="log" id="log"></div>
+  </div>
+<div id="recorderCard" class="card hidden">
+  <h3 style="margin:4px 0 10px">Recorded session — login recorder</h3>
+  <div class="muted" style="margin-bottom:10px">Record a login once in Chromium, reuse the session for scans. The server stores only the session (cookies/tokens); passwords are stripped before anything is saved, and session values are never shown here or written into scan history.</div>
+  <div class="row"><label style="flex:1">Session name <input type="text" id="recName" placeholder="e.g. main-account"></label>
+  <label style="flex:1">Login URL <input type="text" id="recLoginUrl" placeholder="https://target/login"></label></div>
+  <div id="recSteps" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:6px"><button class="alt" onclick="addRecStep()">+ Step</button>
+  <button onclick="recordLogin()">&#9654; Record in browser</button>
+  <button class="alt" onclick="showRecorder(false)">Close</button>
+  <span id="recOut" class="muted"></span></div>
+  <div id="recSessions" style="margin-top:10px"></div>
+</div>
 
 <!-- ================= DASHBOARD ================= -->
 <section class="view active" id="view-dashboard">
@@ -685,15 +755,16 @@ pre .hk{color:var(--navy);font-weight:700}
   </div>
 </section>
 
-<!-- ================= SCANNER ================= -->
+<!-- ================= SCAN ================= -->
 <section class="view" id="view-scanner">
 <div class="card">
+  <div class="secttl">Scan</div>
+  <div class="muted" style="margin-bottom:12px">A single scan with the profile you pick. Results open in the report view; download the PDF when you want it.</div>
   <div class="row">
     <input type="text" id="target" placeholder="http://127.0.0.1:8080  or  https://example.com">
     <select id="profile"><option value="full">Full scan (incl. external recon)</option><option value="recon">External recon only</option><option value="quick">Quick</option><option value="api">API</option><option value="passive">Passive only</option></select>
     <select id="project"><option value="">No project</option></select>
     <button id="scanBtn" onclick="startScan()">&#9654; Start Scan</button>
-    <button id="vaptBtn" onclick="startVapt()" title="Full profile scan; the PDF report downloads automatically when it finishes">&#9654; Run Full VAPT</button>
     <button id="stopBtn" class="danger hidden" onclick="stopScan()">&#9632; Stop</button>
   </div>
   <div class="row" style="margin-top:10px">
@@ -725,8 +796,27 @@ pre .hk{color:var(--navy);font-weight:700}
       <label style="flex:1">Client name (reports) <input type="text" id="clientName" placeholder="Acme Ltd"></label>
     </div>
     <div class="row" style="margin-top:8px">
+      <label style="flex:1">Recorded session <select id="recordedSession"><option value="">— none (use Cookie field instead) —</option></select></label>
+      <label>Role <select id="recordedRole"><option value="primary">primary</option><option value="second">second user</option></select></label>
+      <button class="alt" onclick="loadLoginSessions()">Refresh sessions</button>
+      <button class="alt" onclick="showRecorder(true)">Record new login</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Nuclei template paths (comma-separated) <input type="text" id="nucleiTemplates" placeholder="/path/to/template.yaml, ..."></label>
+      <label style="flex:1">Nuclei templates dir <input type="text" id="nucleiTemplatesDir" placeholder="/path/to/templates"></label>
+      <label>Nuclei severities <input type="text" id="nucleiSeverities" placeholder="critical,high"></label>
+      <label>Nuclei tags <input type="text" id="nucleiTags" placeholder="cve"></label>
+      <label>Nuclei timeout (s) <input type="number" id="nucleiTimeout" value="300"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="alt" onclick="nucleiUpdateCmd()">Show Nuclei update command</button>
+      <button class="alt" onclick="nucleiUpdate()">Update Nuclei templates now</button>
+      <span id="nucleiUpdOut" class="muted">Template updates run only when you click — never during a scan.</span>
+    </div>
+    <div class="row" style="margin-top:8px">
       <label><input type="checkbox" id="wafAdaptive" checked> WAF-adaptive mode (human pacing, evasion, quiet retry of blocked checks)</label>
       <label><input type="checkbox" id="bizlogicChk" checked> Business-logic attacks on the HAR workflow (step-skip / replay / price tampering)</label>
+      <label><input type="checkbox" id="aiChk"> AI assistance (local model only — suggests payloads, logic tests and report text; the engine still proves every finding)</label>
     </div>
   </details>
   <div class="row" style="margin-top:8px">
@@ -734,13 +824,77 @@ pre .hk{color:var(--navy);font-weight:700}
     <input type="text" id="newClient" placeholder="Client (optional)" style="flex:none;min-width:160px">
     <button class="alt" onclick="addProject()">+ Project</button>
   </div>
-  <div id="live" class="hidden" style="margin-top:12px">
-    <div class="pbar"><div class="pfill" id="pfill"></div></div>
-    <div class="pmeta"><b id="ppct">0%</b> <span id="plabel"></span></div>
-    <div><b id="phase">…</b></div><div class="log" id="log"></div>
-  </div>
 </div>
 </section>
+
+<!-- ================= VAPT ================= -->
+<section class="view" id="view-vapt">
+<div class="card">
+  <div class="secttl">VAPT scan <span class="pill" style="color:#e8c468;border-color:#4a3a12;margin-left:8px">FULL REPORT</span></div>
+  <div class="muted" style="margin-bottom:12px">The complete assessment in one run. Always the full profile — no profile picking here.</div>
+  <ul class="vapt-includes">
+    <li>&#10003; All checks, full profile</li>
+    <li>&#10003; Role matrix (multi-user)</li>
+    <li>&#10003; Business-logic tests</li>
+    <li>&#10003; Proof before reporting</li>
+    <li>&#10003; PDF report</li>
+  </ul>
+  <div class="row">
+    <input type="text" id="vaptTarget" placeholder="http://127.0.0.1:8080  or  https://example.com">
+    <select id="vaptProject"><option value="">No project</option></select>
+    <button id="vaptBtn" onclick="startVapt()" title="Full profile scan; the PDF report downloads automatically when it finishes">&#9654; Run Full VAPT</button>
+    <button id="vaptStopBtn" class="danger hidden" onclick="stopScan()">&#9632; Stop</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label>Max pages <input type="number" id="vaptMaxPages" value="60"></label>
+    <label>Depth <input type="number" id="vaptMaxDepth" value="3"></label>
+    <label>Threads <input type="number" id="vaptThreads" value="6"></label>
+    <label style="flex:1">Cookie <input type="text" id="vaptCookie" placeholder="session=..."></label>
+  </div>
+  <details style="margin-top:10px"><summary class="muted">Advanced: proxy, IDOR, auth, API spec, integrations</summary>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Proxy (Burp) <input type="text" id="vaptProxy" placeholder="http://127.0.0.1:8080"></label>
+      <label style="flex:1">Cookie B (IDOR) <input type="text" id="vaptCookieB" placeholder="second user's session"></label>
+      <label><input type="checkbox" id="vaptIdorAnon"> IDOR anon</label>
+      <label><input type="checkbox" id="vaptAuthTest"> Default-creds test</label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Auth user <input type="text" id="vaptAuthUser"></label>
+      <label style="flex:1">Auth pass <input type="password" id="vaptAuthPass"></label>
+      <label style="flex:1">Login URL <input type="text" id="vaptAuthUrl" placeholder="(default /login)"></label>
+      <label style="flex:1">OpenAPI URL <input type="text" id="vaptOpenapi" placeholder="https://.../openapi.json"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Admin cookie (matrix) <input type="text" id="vaptCookieAdmin" placeholder="admin session"></label>
+      <label style="flex:1">HAR file path (seed) <input type="text" id="vaptHarFile" placeholder="C:\\captures\\traffic.har"></label>
+      <label><input type="checkbox" id="vaptUseNuclei"> Run Nuclei</label>
+      <label style="flex:1">ZAP API URL <input type="text" id="vaptZapUrl" placeholder="http://127.0.0.1:8090"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Client name (reports) <input type="text" id="vaptClientName" placeholder="Acme Ltd"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Recorded session <select id="vaptRecordedSession"><option value="">— none (use Cookie field instead) —</option></select></label>
+      <label>Role <select id="vaptRecordedRole"><option value="primary">primary</option><option value="second">second user</option></select></label>
+      <button class="alt" onclick="showRecorder(true)">Record new login</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Nuclei template paths (comma-separated) <input type="text" id="vaptNucleiTemplates" placeholder="/path/to/template.yaml, ..."></label>
+      <label style="flex:1">Nuclei templates dir <input type="text" id="vaptNucleiTemplatesDir" placeholder="/path/to/templates"></label>
+      <label>Nuclei severities <input type="text" id="vaptNucleiSeverities" placeholder="critical,high"></label>
+      <label>Nuclei tags <input type="text" id="vaptNucleiTags" placeholder="cve"></label>
+      <label>Nuclei timeout (s) <input type="number" id="vaptNucleiTimeout" value="300"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label><input type="checkbox" id="vaptWafAdaptive" checked> WAF-adaptive mode (human pacing, evasion, quiet retry of blocked checks)</label>
+      <label><input type="checkbox" id="vaptBizlogicChk" checked> Business-logic attacks on the HAR workflow (step-skip / replay / price tampering)</label>
+      <label><input type="checkbox" id="vaptAiChk"> AI assistance (local model only — suggests payloads, logic tests and report text; the engine still proves every finding)</label>
+    </div>
+  </details>
+  <div class="muted" style="margin-top:10px">When it finishes, the PDF report downloads automatically.</div>
+</div>
+</section>
+
 
 <!-- ================= ATTACK SURFACE ================= -->
 <section class="view" id="view-surface">
@@ -767,7 +921,7 @@ pre .hk{color:var(--navy);font-weight:700}
 <div class="card hidden" id="resultsCard">
   <h3 style="margin:4px 0 12px">Scan results — <span id="resTarget"></span></h3>
   <div class="stats" id="stats"></div>
-  <div style="margin:10px 0"><a id="dlHtml">HTML</a> · <a id="dlJson">JSON</a> · <a id="dlCsv">CSV</a> · <a id="dlPdf">PDF</a> · <a id="dlDocx">DOCX</a> · <a id="dlHar">HAR</a>
+  <div style="margin:10px 0"><a id="dlHtml">HTML</a> · <a id="dlJson">JSON</a> · <a id="dlJsonExp">JSON (export)</a> · <a id="dlCsv">CSV</a> · <a id="dlPdf">PDF</a> · <a id="dlDocx">DOCX</a> · <a id="dlXlsx">Excel</a> · <a id="dlHar">HAR</a>
   &nbsp;|&nbsp; Compare with: <select id="diffSel" style="padding:5px"></select> <a onclick="doDiff()">diff</a>
   <span id="diffOut" class="muted"></span>
   &nbsp;|&nbsp; <label><input type="checkbox" id="groupToggle" onchange="renderFindings(window._curFindings||[], this.checked)"> Group by root cause</label></div>
@@ -775,6 +929,32 @@ pre .hk{color:var(--navy);font-weight:700}
   <span id="retestOut" class="muted">Replays every finding's original attack against the live target and reports Fixed / Still vulnerable per finding.</span></div>
   <div id="retestPanel"></div>
   <div id="changes" class="hidden" style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.3);border-radius:8px;padding:10px;margin:10px 0"></div>
+  <div class="tickbar" id="tickBar">
+    <b>Selected findings:</b>
+    <button class="alt" onclick="toggleAllTicks(true)">Select all</button>
+    <button class="alt" onclick="toggleAllTicks(false)">Clear</button>
+    <label><input type="checkbox" id="singleSummary"> Single summary issue</label>
+    <button class="alt" onclick="sendTicket('jira')">Send selected to Jira</button>
+    <button class="alt" onclick="sendTicket('github')">Send selected to GitHub</button>
+    <span id="tickOut" class="muted"></span>
+  </div>
+  <details style="margin:10px 0"><summary class="muted">Ticket settings (per-request only — never stored in scan history or reports)</summary>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Jira base URL <input type="text" id="jiraBase" placeholder="https://your-domain.atlassian.net"></label>
+      <label style="flex:1">Jira email <input type="text" id="jiraEmail"></label>
+      <label style="flex:1">Jira API token <input type="password" id="jiraToken"></label>
+      <label>Jira project key <input type="text" id="jiraProject"></label>
+      <label>Jira issue type <input type="text" id="jiraIssueType" placeholder="(optional)"></label>
+      <label>Jira labels <input type="text" id="jiraLabels" placeholder="comma-separated"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>GitHub owner <input type="text" id="ghOwner"></label>
+      <label>GitHub repo <input type="text" id="ghRepo"></label>
+      <label style="flex:1">GitHub token <input type="password" id="ghToken"></label>
+      <label>GitHub labels <input type="text" id="ghLabels" placeholder="comma-separated"></label>
+    </div>
+  </details>
+  <div id="cmsBlock"></div><div id="nucleiBlock"></div><div id="cveBlock"></div><div id="exclBox"></div>
   <div id="findings"></div>
   <div id="suppBox" style="margin-top:14px"></div>
   <details style="margin-top:12px"><summary class="muted">Permission matrix (who can see what)</summary><div id="matrix" style="overflow:auto"></div></details>
@@ -946,6 +1126,34 @@ pre .hk{color:var(--navy);font-weight:700}
   <div id="ruleList" class="muted" style="margin-top:8px"></div>
 </div>
 </div>
+<div class="card" style="margin-top:16px">
+  <h3 style="margin:4px 0 10px">Custom checks (builder)</h3>
+  <div class="muted" style="margin-bottom:10px">A custom check runs against parameterized URLs in every scan (enabled ones only) and reports ONLY proven findings — the proof rule decides. Validation errors from the builder are shown verbatim.</div>
+  <div class="row"><label style="flex:1">Name <input type="text" id="ccName" placeholder="Reflected marker in search"></label>
+  <label style="flex:1">Title <input type="text" id="ccTitle" placeholder="(defaults to name)"></label>
+  <label>Severity <select id="ccSev"><option>Medium</option><option>High</option><option>Critical</option><option>Low</option><option>Info</option></select></label>
+  <label>CWE <input type="text" id="ccCwe" placeholder="CWE-79"></label>
+  <label><input type="checkbox" id="ccEnabled" checked> Enabled</label></div>
+  <div class="row" style="margin-top:8px"><input type="text" id="ccDesc" placeholder="Description" style="flex:1"></div>
+  <div class="row" style="margin-top:8px">
+    <label>Target kind <select id="ccKind"><option value="url_param">URL parameter</option><option value="form_field">Form field</option></select></label>
+    <label style="flex:1">Param / field name <input type="text" id="ccParam" placeholder="q"></label>
+    <label style="flex:1">URL must contain <input type="text" id="ccUrlContains" placeholder="(optional substring)"></label>
+    <label>Method <select id="ccMethod"><option>GET</option><option>POST</option></select></label>
+    <label>Payload mode <select id="ccPayloadMode"><option>replace</option><option>append</option></select></label>
+  </div>
+  <div class="row" style="margin-top:8px"><label style="flex:1">Payloads (one per line) <textarea id="ccPayloads" rows="3" placeholder="&lt;script&gt;alert(1)&lt;/script&gt;"></textarea></label></div>
+  <div class="row" style="margin-top:8px">
+    <label>Proof rule <select id="ccProofType"><option value="reflection">reflection</option><option value="error_string">error_string</option><option value="status">status</option><option value="differential">differential</option></select></label>
+    <label style="flex:1">Proof field <input type="text" id="ccProofField" placeholder="reflection: marker ({payload} = payload) · error_string: comma-separated strings · status: expected code · differential: contains text"></label>
+  </div>
+  <div class="row" style="margin-top:8px"><button class="alt" onclick="saveCustomCheck()">Save custom check</button>
+  <span id="ccOut" class="muted"></span></div>
+  <div id="ccList" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:8px"><label style="flex:1">Dry-run URL <input type="text" id="ccTestUrl" placeholder="http://target/search?q=test"></label>
+  <button class="alt" onclick="testCustomCheck()">Dry run selected check</button>
+  <span id="ccTestOut" class="muted"></span></div>
+</div>
 </section>
 
 <!-- ================= HISTORY ================= -->
@@ -984,7 +1192,7 @@ const _f=window.fetch;window.fetch=(u,o={})=>{o.headers={...(o.headers||{}),'X-A
 document.getElementById('apiToken').value=localStorage.getItem('wscan_token')||'';
 let cur=null,timer=null,ALL_ASSETS=[],LAST_EXT=null;
 const SEVC={Critical:'crit',High:'high',Medium:'med',Low:'low',Info:'info'};
-const TITLES={dashboard:'Dashboard',scanner:'Scanner',surface:'Attack Surface',findings:'Findings',repeater:'Repeater',a403:'403 Access-Control Assessment',automation:'Schedules & Rules',history:'History',settings:'Settings'};
+const TITLES={dashboard:'Dashboard',scanner:'Scan',vapt:'VAPT',surface:'Attack Surface',findings:'Findings',repeater:'Repeater',a403:'403 Access-Control Assessment',automation:'Schedules & Rules',history:'History',settings:'Settings'};
 const SUBS={a403:'Standalone diagnostic module — authorized targets only'};
 function esc(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
 function show(v){document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
@@ -993,33 +1201,53 @@ function show(v){document.querySelectorAll('.view').forEach(s=>s.classList.remov
   document.getElementById('viewTitle').textContent=TITLES[v]||v;
   document.getElementById('topSub').textContent=SUBS[v]||'Proof-based scanning with external reconnaissance';
   if(v==='surface') loadAssets();
+  if(v==='automation') loadCustomChecks();
+  if(v==='scanner'||v==='vapt') loadLoginSessions();
   if(v==='a403') loadA403History();}
-async function startScan(){
-  const target=document.getElementById('target').value.trim(); if(!target) return;
+function fld(p,n){return document.getElementById(p?p+n.charAt(0).toUpperCase()+n.slice(1):n);}
+function scanBody(p,profileOverride,target){
+  const g=(n)=>fld(p,n);
+  const gv=(n)=>{const e=g(n);return e?e.value.trim():'';};
+  const gc=(n)=>{const e=g(n);return e?e.checked:false;};
+  const body={target,profile:profileOverride||g('profile').value,
+    project:gv('project'),
+    max_pages:+g('maxPages').value,
+    max_depth:+g('maxDepth').value,
+    threads:+g('threads').value,
+    cookie:gv('cookie')||null,
+    cookie_b:gv('cookieB')||null,
+    proxy:gv('proxy')||null,
+    idor_anon:gc('idorAnon'),
+    auth_test:gc('authTest'),
+    openapi:gv('openapi')||null,
+    cookie_admin:gv('cookieAdmin')||null,
+    har_file:gv('harFile')||null,
+    nuclei:gc('useNuclei'),
+    zap_url:gv('zapUrl')||null,
+    waf_adaptive:gc('wafAdaptive'),
+    bizlogic:gc('bizlogicChk'),
+    ai:gc('aiChk'),
+    client_name:gv('clientName')||null,
+    recorded_session:gv('recordedSession')||null,
+    recorded_role:g('recordedRole').value,
+    nuclei_templates:gv('nucleiTemplates').split(',').map(x=>x.trim()).filter(Boolean),
+    nuclei_templates_dir:gv('nucleiTemplatesDir')||null,
+    nuclei_severities:gv('nucleiSeverities').split(',').map(x=>x.trim()).filter(Boolean),
+    nuclei_tags:gv('nucleiTags').split(',').map(x=>x.trim()).filter(Boolean),
+    nuclei_timeout:+g('nucleiTimeout').value||300};
+  const au=gv('authUser');
+  if(au) body.auth={username:au,password:g('authPass').value,
+    login_url:gv('authUrl')||undefined};
+  return body;
+}
+async function startScan(){ await runScan(''); }
+async function runScan(p,forcedTarget){
+  const target=forcedTarget||document.getElementById(p?p+'Target':'target').value.trim(); if(!target) return;
   document.getElementById('scanBtn').disabled=true;
-  const _vb0=document.getElementById('vaptBtn'); if(_vb0) _vb0.disabled=true;
+  document.getElementById('vaptBtn').disabled=true;
   document.getElementById('stopBtn').classList.remove('hidden');
-  const body={target,profile:document.getElementById('profile').value,
-    project:document.getElementById('project').value,
-    max_pages:+document.getElementById('maxPages').value,
-    max_depth:+document.getElementById('maxDepth').value,
-    threads:+document.getElementById('threads').value,
-    cookie:document.getElementById('cookie').value.trim()||null,
-    cookie_b:document.getElementById('cookieB').value.trim()||null,
-    proxy:document.getElementById('proxy').value.trim()||null,
-    idor_anon:document.getElementById('idorAnon').checked,
-    auth_test:document.getElementById('authTest').checked,
-    openapi:document.getElementById('openapi').value.trim()||null,
-    cookie_admin:document.getElementById('cookieAdmin').value.trim()||null,
-    har_file:document.getElementById('harFile').value.trim()||null,
-    nuclei:document.getElementById('useNuclei').checked,
-    zap_url:document.getElementById('zapUrl').value.trim()||null,
-    waf_adaptive:document.getElementById('wafAdaptive').checked,
-    bizlogic:document.getElementById('bizlogicChk').checked,
-    client_name:document.getElementById('clientName').value.trim()||null};
-  const au=document.getElementById('authUser').value.trim();
-  if(au) body.auth={username:au,password:document.getElementById('authPass').value,
-    login_url:document.getElementById('authUrl').value.trim()||undefined};
+  document.getElementById('vaptStopBtn').classList.remove('hidden');
+  const body=scanBody(p,p==='vapt'?'full':null,target);
   const r=await fetch('/api/scans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const j=await r.json(); cur=j.id; window._lastSig='';
   document.getElementById('live').classList.remove('hidden');
@@ -1028,10 +1256,11 @@ async function startScan(){
   timer=setInterval(poll,1500); poll();
 }
 function startVapt(){
-  const t=document.getElementById('target').value.trim(); if(!t) return;
+  const vt=document.getElementById('vaptTarget');
+  const t=(vt&&vt.value.trim())||document.getElementById('target').value.trim(); if(!t) return;
   document.getElementById('profile').value='full';
   window._vaptAutoPdf=true;
-  startScan();
+  runScan('vapt',t);
 }
 async function stopScan(){ if(cur) await fetch('/api/scans/'+cur+'/stop',{method:'POST'}); }
 async function poll(){
@@ -1050,11 +1279,11 @@ async function poll(){
       renderResults(j.result?j.result.target:j.target, fs, j.result?j.result.counts:null, j.result);}
   }
   if(j.status!=='running'&&j.status!=='queued'){clearInterval(timer);document.getElementById('scanBtn').disabled=false;
-    const _vb=document.getElementById('vaptBtn'); if(_vb) _vb.disabled=false;
+    document.getElementById('vaptBtn').disabled=false;
     if(window._vaptAutoPdf&&j.status==='done'){window._vaptAutoPdf=false;
       document.getElementById('phase').textContent='Full VAPT done \u2014 PDF report downloading.';
       const a=document.createElement('a'); a.href='/api/scans/'+cur+'/pdf'; a.download=''; document.body.appendChild(a); a.click(); a.remove();}
-    document.getElementById('stopBtn').classList.add('hidden');loadHistory();loadDiffOptions();loadAssets();}
+    document.getElementById('stopBtn').classList.add('hidden');document.getElementById('vaptStopBtn').classList.add('hidden');loadHistory();loadDiffOptions();loadAssets();}
 }
 function badgePills(f){
   return `${f.fp_suspect?`<span class="pill" style="background:rgba(234,179,8,.14);color:#eab308" title="${esc(f.fp_reason||'')}">possible FP</span>`:''}
@@ -1105,7 +1334,7 @@ function renderFindings(findings, grouped){
   }
   document.getElementById('findings').innerHTML=findings.map(f=>`
    <details class="finding" data-fid="${f.fp||f.id}" ${openIds.has(String(f.fp||f.id))?'open':''} style="border-left-color:var(--${SEVC[f.severity]==='crit'?'crit':SEVC[f.severity]==='med'?'med':SEVC[f.severity]})">
-    <summary><span class="sev ${SEVC[f.severity]}">${f.severity}</span> <b>${esc(f.title)}</b>
+    <summary><input type="checkbox" class="tickchk" data-fp="${f.fp}" title="Select for ticketing"> <span class="sev ${SEVC[f.severity]}">${f.severity}</span> <b>${esc(f.title)}</b>
      <span class="conf">${esc(f.confidence)}${f.cwe?' · '+esc(f.cwe):''}</span>
      ${f.status?`<span class="sev info">${esc(f.status)}</span>`:''}
      ${badgePills(f)}<br>
@@ -1121,7 +1350,15 @@ function renderFindings(findings, grouped){
       <input type="text" id="nt-${f.fp}" placeholder="Analyst note" value="${esc(f.notes||'')}" style="flex:1">
       <button class="alt" onclick="saveMeta('${f.fp}')">Save</button>
       <button class="alt" onclick="verifyFix('${f.fp}')">Verify Fix</button>
+      <button class="alt" onclick="markFP('${f.fp}')">Mark false positive</button>
+      <button class="alt" onclick="unmarkFP('${f.fp}')">Unmark FP</button>
+      <button class="alt" onclick="showSuggestedFix('${f.fp}')">Suggested fix</button>
       <span id="vf-${f.fp}" class="muted"></span></div>
+      <div id="sf-${f.fp}" class="muted" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:8px"><input type="text" id="fx-${f.fp}" placeholder="Describe the fix you applied (engine re-tests the original proof)" style="flex:1">
+      <button class="alt" onclick="retestFixDesc('${f.fp}')">Re-test this fix</button>
+      <span id="rf-${f.fp}" class="muted"></span></div>
+      <div id="rfs-${f.fp}" class="muted" style="margin-top:6px"></div></div>
     </div></details>`).join('');
 }
 function renderResults(target, findings, counts, result){
@@ -1141,8 +1378,21 @@ function renderResults(target, findings, counts, result){
     `<div class="stat"><b>${counts[s]||0}</b>${s}</div>`).join('')
     +`<div class="stat"><b>${findings.length}</b>Total</div>`
     +(risk!==null&&risk!==undefined?`<div class="stat"><b style="color:${risk>=70?'var(--crit)':risk>=45?'var(--high)':risk>=25?'var(--med)':'var(--low)'}">${risk}</b>Risk /100</div>`:'');
-  for(const [id,ext] of [['dlHtml','report.html'],['dlJson','report.json'],['dlCsv','report.csv'],['dlPdf','report.pdf'],['dlDocx','report.docx'],['dlHar','report.har']])
+  for(const [id,ext] of [['dlHtml','report.html'],['dlJson','report.json'],['dlCsv','report.csv'],['dlPdf','report.pdf'],['dlDocx','report.docx'],['dlHar','report.har'],['dlXlsx','report.xlsx'],['dlJsonExp','report.export.json']])
     document.getElementById(id).href='/api/scans/'+cur+'/'+ext;
+  const cms=(result&&result.cms)||{};
+  document.getElementById('cmsBlock').innerHTML=(cms.advisories||[]).length?
+    `<div class="advblock"><h4>CMS advisories (not vulnerabilities)</h4>${(cms.advisories||[]).map(a=>`<div><span class="lbl">${esc(a.title||'advisory')}</span>${esc(a.detail||'')}</div>`).join('')}</div>`:'';
+  const nuc=(result&&result.nuclei)||null;
+  document.getElementById('nucleiBlock').innerHTML=nuc?
+    `<div class="advblock"><h4>Nuclei template matches (Nuclei-sourced, not engine-proven)</h4>${nuc.note?`<div class="muted">${esc(nuc.note)}</div>`:''}${(nuc.matches||[]).map(m=>`<div>[${esc(m.severity)}] ${esc(m.name)} (template ${esc(m.template_id)}) → ${esc(m.matched_at)}<br><span class="muted">Evidence (Nuclei-sourced): ${esc(m.evidence||'')}</span></div>`).join('')||'<div class="muted">No template matches.</div>'}</div>`:'';
+  const cve=(result&&result.cve_advisories)||null;
+  document.getElementById('cveBlock').innerHTML=cve?
+    `<div class="advblock"><h4>CVE advisories (informational only — not findings)</h4>${(cve.notes||[]).map(n=>`<div class="muted">${esc(n)}</div>`).join('')}${(cve.advisories||[]).map(a=>`<div>[${esc(a.severity)}${a.cvss_score!=null?' CVSS '+a.cvss_score:''}] ${esc(a.cve_id)} (${esc(a.tech||'')} ${esc(a.detected_version||'')})<br><span class="muted">${esc((a.description||'').slice(0,200))}</span>${(a.references||[]).length?`<br><span class="muted">Refs: ${(a.references||[]).slice(0,3).map(esc).join(', ')}</span>`:''}</div>`).join('')||'<div class="muted">No CVE advisories.</div>'}</div>`:'';
+  const excl=(result&&result.excluded_false_positives)||[];
+  document.getElementById('exclBox').innerHTML=excl.length?
+    `<div class="advblock"><h4>Excluded as false positive (reason)</h4>${excl.map(e=>`<div>${esc(e.title)} — ${esc(e.url)}${e.param?' · param: '+esc(e.param):''}<br><span class="muted">Reason: ${esc(e.exclusion_reason||'')} · marked by ${esc(e.exclusion_marked_by||'')} at ${esc(e.exclusion_marked_at||'')}</span></div>`).join('')}</div>`:
+    ((result&&result.exclusion_counts&&result.exclusion_counts.excluded)?`<div class="muted">Excluded as false positive: ${result.exclusion_counts.excluded}</div>`:'');
   window._curFindings=findings;
   window._openIds=new Set([...document.querySelectorAll('#findings details[open]')].map(d=>d.dataset.fid));
   renderFindings(findings, (document.getElementById('groupToggle')||{}).checked);
@@ -1193,9 +1443,13 @@ async function loadDiffOptions(){
 async function doDiff(){
   const other=document.getElementById('diffSel').value; if(!other||!cur) return;
   const r=await fetch(`/api/scans/${cur}/diff/${other}`); const j=await r.json();
-  document.getElementById('diffOut').textContent=
-    ` vs selected: ${j.new.length} NEW, ${j.fixed.length} FIXED, ${j.still_open.length} still open. New: `+
-    j.new.slice(0,5).map(f=>f.title).join('; ');
+  if(j.error){document.getElementById('diffOut').textContent=j.error; return;}
+  const sec=j.sections||{};
+  const row=(k,items)=>(items||[]).length?`<div><b>${k} (${items.length}):</b> ${items.slice(0,8).map(f=>esc(f.title)+' — '+esc(f.url)).join('; ')}</div>`:'';
+  document.getElementById('diffOut').innerHTML=
+    (j.warning?`<div style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);border-radius:6px;padding:6px 10px;margin:6px 0">⚠ ${esc(j.warning)}</div>`:'')+
+    (j.summary?`<div>${esc(typeof j.summary==='string'?j.summary:JSON.stringify(j.summary))}</div>`:'')+
+    row('NEW',sec.new||j.new)+row('CHANGED',sec.changed||j.changed)+row('FIXED',sec.fixed||j.fixed)+row('UNCHANGED',sec.unchanged||j.still_open);
 }
 async function loadHistory(){
   const r=await fetch('/api/scans'); const j=await r.json();
@@ -1246,7 +1500,9 @@ async function resumeScan(id){
   cur=j.id; window._lastSig=''; show('scanner');
   document.getElementById('live').classList.remove('hidden');
   document.getElementById('scanBtn').disabled=true;
+  document.getElementById('vaptBtn').disabled=true;
   document.getElementById('stopBtn').classList.remove('hidden');
+  document.getElementById('vaptStopBtn').classList.remove('hidden');
   clearInterval(timer); timer=setInterval(poll,1500); poll();
 }
 let _retestTimer=null;
@@ -1269,6 +1525,145 @@ async function retestAll(){
       '<div style="padding:5px 0;border-bottom:1px solid var(--line)"><span class="sev '+(v.verdict==='Fixed'?'info':v.verdict==='Still vulnerable'?'crit':'med')+'">'+esc(v.verdict)+'</span> <b>'+esc(v.title)+'</b> <span class="muted">'+esc(v.detail||'')+'</span><br><small>'+esc(v.url)+'</small></div>').join('');
   },2000);
 }
+function tickSel(){return [...document.querySelectorAll('.tickchk:checked')].map(c=>c.dataset.fp)}
+function toggleAllTicks(on){document.querySelectorAll('.tickchk').forEach(c=>c.checked=on)}
+async function sendTicket(kind){
+  const ids=tickSel(); if(!ids.length){document.getElementById('tickOut').textContent='Select at least one finding (ungrouped view).'; return;}
+  const split=v=>v.split(',').map(x=>x.trim()).filter(Boolean);
+  let settings={};
+  if(kind==='jira') settings={base_url:document.getElementById('jiraBase').value.trim(),email:document.getElementById('jiraEmail').value.trim(),api_token:document.getElementById('jiraToken').value,project_key:document.getElementById('jiraProject').value.trim(),issue_type:document.getElementById('jiraIssueType').value.trim()||undefined,labels:split(document.getElementById('jiraLabels').value)};
+  else settings={owner:document.getElementById('ghOwner').value.trim(),name:document.getElementById('ghRepo').value.trim(),token:document.getElementById('ghToken').value,labels:split(document.getElementById('ghLabels').value)};
+  document.getElementById('tickOut').textContent='Sending…';
+  const r=await fetch(`/api/scans/${cur}/ticket/${kind}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({finding_ids_or_indices:ids,single_summary:document.getElementById('singleSummary').checked,settings})});
+  const j=await r.json();
+  if(j.error){document.getElementById('tickOut').textContent=j.error; return;}
+  document.getElementById('tickOut').textContent=(j.results||[]).map(x=>x.success?('✔ '+(x.issue_key||('#'+x.issue_number))):('✘ '+x.finding_title+': '+(x.error||''))).join(' · ');
+}
+function _fpFinding(fp){return (window._curFindings||[]).find(f=>f.fp===fp)}
+async function markFP(fp){
+  const f=_fpFinding(fp); if(!f) return;
+  const reason=prompt('Why is this a false positive? (required — shown in future reports)');
+  if(!reason||!reason.trim()) return;
+  const t=document.getElementById('resTarget').textContent;
+  const r=await fetch('/api/findings/false-positive',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:t,finding:{title:f.title,url:f.url,param:f.param||''},reason:reason.trim(),marked_by:'analyst'})});
+  const j=await r.json();
+  toast(j.error||'Marked as false positive — it will be excluded from future reports of this target. (Re-open the scan to see it excluded.)', j.error?'err':undefined);
+}
+async function unmarkFP(fp){
+  const f=_fpFinding(fp); if(!f) return;
+  const t=document.getElementById('resTarget').textContent;
+  const r=await fetch('/api/findings/false-positive/unmark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:t,finding:{title:f.title,url:f.url,param:f.param||''},unmarked_by:'analyst'})});
+  const j=await r.json();
+  toast(j.error||'False-positive mark removed — the finding returns in future reports of this target.', j.error?'err':undefined);
+}
+async function showSuggestedFix(fp){
+  const el=document.getElementById('sf-'+fp); el.textContent='Asking the local model…';
+  const r=await fetch('/api/findings/suggested-fix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_id:cur,fp})});
+  const j=await r.json();
+  el.innerHTML=j.error?esc(j.error):`<div class="advblock"><b>Suggested fix</b> <span class="muted">(advisory only — does not change scan results or the finding's remediation)</span><pre>${esc(j.text||'')}</pre></div>`;
+}
+async function retestFixDesc(fp){
+  const desc=document.getElementById('fx-'+fp).value.trim(); if(!desc) return;
+  const el=document.getElementById('rf-'+fp), sum=document.getElementById('rfs-'+fp);
+  el.textContent='Engine re-testing the original proof…'; sum.textContent='';
+  const r=await fetch('/api/findings/retest-fix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_id:cur,fp,fix_description:desc})});
+  const j=await r.json();
+  if(j.error){el.textContent=j.error; return;}
+  el.innerHTML=`<b>Engine verdict: ${esc(j.engine_verdict||j.verdict||'')}</b> — ${esc(j.detail||'')}`;
+  if(j.fix_summary) sum.innerHTML=`<span class="muted">Fix summary (local model):</span> ${esc(j.fix_summary)}`;
+}
+async function loadLoginSessions(){
+  const r=await fetch('/api/login-records'); const j=await r.json();
+  const sel=document.getElementById('recordedSession');
+  if(sel) sel.innerHTML='<option value="">— none (use Cookie field instead) —</option>'+(j.sessions||[]).map(x=>`<option value="${esc(x.name)}">${esc(x.name)} (${esc(x.origin||'')})</option>`).join('');
+  const sel2=document.getElementById('vaptRecordedSession');
+  if(sel2) sel2.innerHTML='<option value="">— none (use Cookie field instead) —</option>'+(j.sessions||[]).map(x=>`<option value="${esc(x.name)}">${esc(x.name)} (${esc(x.origin||'')}</option>`).join('');
+  const box=document.getElementById('recSessions');
+  if(box) box.innerHTML=(j.sessions||[]).length?('<h4>Saved sessions (names + origin only — values never shown)</h4>'+(j.sessions||[]).map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><span><b>${esc(x.name)}</b> <span class="muted">${esc(x.origin||'')} · ${esc(x.created_at||'')} · cookies: ${(x.cookie_names||[]).join(', ')||'—'} · tokens: ${(x.token_keys||[]).join(', ')||'—'}</span></span><button class="alt" onclick="checkSession('${esc(x.name)}')">Check</button><button class="alt" onclick="delSession('${esc(x.name)}')">Delete</button><span id="chk-${esc(x.name)}" class="muted"></span></div>`).join('')):'<span class="muted">No recorded sessions yet.</span>';
+}
+function showRecorder(open){
+  document.getElementById('recorderCard').classList.toggle('hidden',!open);
+  if(open){if(!document.querySelector('#recSteps .recstep')) addRecStep(); loadLoginSessions();}
+}
+function addRecStep(){
+  const d=document.createElement('div'); d.className='recstep';
+  d.innerHTML=`<select class="rs-act"><option value="goto">goto</option><option value="fill">fill</option><option value="click">click</option><option value="wait">wait</option></select><input type="text" class="rs-tgt" placeholder="URL (goto) or selector (fill/click)"><input type="text" class="rs-val" placeholder="value (fill) or ms (wait)"><button class="alt" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('recSteps').appendChild(d);
+}
+function recStepsJson(){
+  return [...document.querySelectorAll('#recSteps .recstep')].map(row=>{
+    const a=row.querySelector('.rs-act').value, t=row.querySelector('.rs-tgt').value.trim(), v=row.querySelector('.rs-val').value;
+    if(a==='goto') return {action:'goto',url:t||v};
+    if(a==='fill') return {action:'fill',selector:t,value:v};
+    if(a==='click') return {action:'click',selector:t};
+    return {action:'wait',ms:+(v)||1000};
+  }).filter(x=>x.url||x.selector||x.ms);
+}
+async function recordLogin(){
+  const name=document.getElementById('recName').value.trim(), loginUrl=document.getElementById('recLoginUrl').value.trim();
+  if(!name){document.getElementById('recOut').textContent='Session name required.'; return;}
+  document.getElementById('recOut').textContent='Recording in Chromium… (this opens a browser on the server)';
+  const r=await fetch('/api/login-records/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,login_url:loginUrl,steps:recStepsJson()})});
+  const j=await r.json();
+  if(j.error){document.getElementById('recOut').textContent=j.error; return;}
+  document.getElementById('recOut').textContent=`Recorded: ${j.name} @ ${j.origin} — cookies: ${(j.cookie_names||[]).join(', ')||'—'} · tokens: ${(j.token_keys||[]).join(', ')||'—'} (values never shown)`;
+  loadLoginSessions();
+}
+async function checkSession(name){
+  const el=document.getElementById('chk-'+name); if(el) el.textContent='checking…';
+  const r=await fetch('/api/login-records/'+encodeURIComponent(name)+'/check'); const j=await r.json();
+  const chk=j.check||{};
+  if(el) el.textContent=chk.needs_rerecord?'session expired, re-record':(chk.alive?'alive':(chk.reason||j.error||''));
+}
+async function delSession(name){
+  if(!await uiConfirm('Delete session','Delete recorded session '+name+'?','Delete')) return;
+  await fetch('/api/login-records/'+encodeURIComponent(name),{method:'DELETE'});
+  loadLoginSessions();
+}
+async function nucleiUpdateCmd(){
+  const r=await fetch('/api/nuclei/update-command'); const j=await r.json();
+  document.getElementById('nucleiUpdOut').textContent=j.command?('Update command: '+j.command.join(' ')):(j.note||'Nuclei not installed.');
+}
+async function nucleiUpdate(){
+  document.getElementById('nucleiUpdOut').textContent='Updating templates…';
+  const r=await fetch('/api/nuclei/update',{method:'POST'}); const j=await r.json();
+  document.getElementById('nucleiUpdOut').textContent=j.note||(j.ok?'Updated.':'Update failed.');
+}
+async function loadCustomChecks(){
+  const r=await fetch('/api/custom-checks'); const j=await r.json();
+  document.getElementById('ccList').innerHTML=(j.checks||[]).length?(j.checks||[]).map(c=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><span><b>${esc(c.name)}</b> <span class="muted">${esc(c.title||'')} · ${esc(c.severity)} · ${c.enabled?'enabled':'disabled'} · ${esc(c.target.kind)}:${esc(c.target.param||c.target.field||'')}</span></span><button class="alt" onclick="document.getElementById('ccTestUrl').dataset.check='${esc(c.name)}';document.getElementById('ccTestOut').textContent='Selected: ${esc(c.name)} — enter a dry-run URL and click Dry run.'">Select for dry run</button><button class="alt" onclick="delCustomCheck('${esc(c.name)}')">Delete</button></div>`).join(''):'<span class="muted">No custom checks yet.</span>';
+}
+async function saveCustomCheck(){
+  const t=document.getElementById('ccProofType').value, pf=document.getElementById('ccProofField').value.trim();
+  let rule={type:t};
+  if(t==='reflection') rule.marker=pf||'{payload}';
+  else if(t==='error_string') rule.strings=pf.split(',').map(x=>x.trim()).filter(Boolean);
+  else if(t==='status') rule.expected=pf.split(',').map(x=>+x.trim()).filter(x=>x);
+  else if(t==='differential') rule.contains=pf;
+  const kind=document.getElementById('ccKind').value;
+  const target={kind,url_contains:document.getElementById('ccUrlContains').value.trim()||undefined,method:document.getElementById('ccMethod').value,payload_mode:document.getElementById('ccPayloadMode').value};
+  if(kind==='url_param') target.param=document.getElementById('ccParam').value.trim();
+  else target.field=document.getElementById('ccParam').value.trim();
+  const defn={name:document.getElementById('ccName').value.trim(),description:document.getElementById('ccDesc').value.trim(),target,payloads:document.getElementById('ccPayloads').value.split('\n').map(x=>x.trim()).filter(Boolean),proof_rule:rule,severity:document.getElementById('ccSev').value,cwe:document.getElementById('ccCwe').value.trim(),title:document.getElementById('ccTitle').value.trim()||undefined,enabled:document.getElementById('ccEnabled').checked};
+  const r=await fetch('/api/custom-checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(defn)});
+  const j=await r.json();
+  document.getElementById('ccOut').textContent=j.error||'Saved.';
+  if(!j.error) loadCustomChecks();
+}
+async function delCustomCheck(name){
+  if(!await uiConfirm('Delete custom check','Delete custom check '+name+'?','Delete')) return;
+  await fetch('/api/custom-checks/'+encodeURIComponent(name),{method:'DELETE'});
+  loadCustomChecks();
+}
+async function testCustomCheck(){
+  const name=document.getElementById('ccTestUrl').dataset.check;
+  const url=document.getElementById('ccTestUrl').value.trim();
+  if(!name||!url){document.getElementById('ccTestOut').textContent='Pick a check from the list, then enter a dry-run URL.'; return;}
+  document.getElementById('ccTestOut').textContent='Dry-running…';
+  const r=await fetch('/api/custom-checks/'+encodeURIComponent(name)+'/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const j=await r.json();
+  document.getElementById('ccTestOut').textContent=j.error||(j.finding?('PROVEN: '+j.finding.title+' — '+j.finding.detail):('Not proven. Notes: '+(j.notes||[]).join('; ')));
+}
 async function clearHistory(){
   if(!await uiConfirm('Clear old results','Clear ALL old scan results? Stored scans, their findings and reports will be deleted, and the attack-surface asset inventory built from them goes too. This cannot be undone.','Clear all')) return;
   const r=await fetch('/api/scans',{method:'DELETE'}); const j=await r.json();
@@ -1284,6 +1679,9 @@ async function addProject(){
 async function loadProjects(){
   const r=await fetch('/api/projects'); const j=await r.json();
   document.getElementById('project').innerHTML='<option value="">No project</option>'+
+    j.projects.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}${p.client?' ('+esc(p.client)+')':''}</option>`).join('');
+  const pj2=document.getElementById('vaptProject');
+  if(pj2) pj2.innerHTML='<option value="">No project</option>'+
     j.projects.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}${p.client?' ('+esc(p.client)+')':''}</option>`).join('');
 }
 /* ---------------- Attack Surface ---------------- */
@@ -1659,25 +2057,25 @@ loadHistory(); loadProjects(); loadSchedules(); loadRepeatHistory(); loadRules()
 </body></html>"""
 
 
-# --- Mobile app shell (Reconix 3.31) -------------------------------------
+# --- Mobile app shell (Reconix 4.2) -------------------------------------
 # Injected into the UI only when the request comes from the Android app
 # (User-Agent contains "ReconixAndroid"). Desktop/laptop UI is untouched.
-MOBILE_HEAD = r"""
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+MOBILE_HEAD = r"""<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style id="rxMobileCss">
 html{-webkit-text-size-adjust:100%}
 *{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-body{display:block;font-size:15px}
-aside{position:fixed;top:0;left:0;right:0;width:auto;height:52px;flex-direction:row;
- align-items:center;border-right:0;border-bottom:1px solid var(--line);z-index:60;padding:0 14px}
+body{display:block;font-size:15px;--mint:#2ee6a8;--mint-soft:rgba(46,230,168,.12);--mint-line:rgba(46,230,168,.38);--mint-txt:#8ff5cd}
+aside{position:fixed;top:0;left:0;right:0;width:auto;height:52px;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--line);z-index:60;padding:0 14px}
 aside .logo{font-size:19px;padding:0}
 aside .tagline,aside nav,aside .sidefoot{display:none}
 .wrap{margin-top:52px;padding-bottom:92px}
 main{max-width:none;padding:14px 12px 8px}
-.topbar{flex-wrap:wrap;gap:2px;margin-bottom:10px}
+.topbar{flex-wrap:nowrap;gap:8px;margin-bottom:10px}
 .topbar h2{font-size:20px}
-#topSub{font-size:12px;flex-basis:100%}
-.card{border-radius:14px;padding:14px;margin-bottom:12px}
+#topSub{display:none}
+#rxExport{display:none;margin-left:auto;background:none;border:1px solid var(--mint-line);color:var(--mint-txt);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;min-height:38px}
+#rxExport.show{display:inline-block}
+.card{border-radius:16px;padding:14px;margin-bottom:12px}
 .row{flex-wrap:wrap;gap:9px}
 input,select,textarea{font-size:16px!important;min-height:46px;padding:10px 12px;border-radius:10px}
 input[type=checkbox]{min-height:0;width:20px;height:20px;vertical-align:-4px}
@@ -1687,10 +2085,13 @@ label{font-size:14px}
 .stat{min-width:100px;flex:1}
 .stat b{font-size:22px}
 .grid2,.fgrid{grid-template-columns:1fr!important}
-#view-scanner #target{flex:1 1 100%;font-size:16px;padding:13px}
-#view-scanner #profile,#view-scanner #project{flex:1 1 44%}
-#scanBtn,#vaptBtn{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700}
-#stopBtn{flex:1 1 100%}
+#view-scanner #target,#view-vapt #vaptTarget{flex:1 1 100%;font-size:16px;padding:13px}
+#view-scanner #profile{display:none}
+#view-scanner #project,#view-vapt #vaptProject{flex:1 1 44%}
+#view-scanner .card>div.muted{display:none}
+#scanBtn,#vaptBtn,#rxHomeScan{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700;background:#2ee6a8;color:#06281d;border:0}
+#rxHomeScan{width:100%;margin-top:2px}
+#stopBtn,#vaptStopBtn{flex:1 1 100%}
 .pbar{height:10px;border-radius:6px}
 .pmeta{font-size:15px}
 #phase{font-size:15px}
@@ -1699,39 +2100,79 @@ label{font-size:14px}
 #rxRing.on{display:block}
 #rxRing svg{transform:rotate(-90deg)}
 #rxRing .rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-#rxRing .rp{font-size:31px;font-weight:800;color:var(--navy)}
-#resultsCard h3,.finding summary small,.finding .mono{overflow-wrap:anywhere;word-break:break-word}
+#rxRing .rp{font-size:31px;font-weight:800;color:#fafafa}
 #rxRing .rph{font-size:10.5px;letter-spacing:1.4px;line-height:1.45;color:var(--mut);text-transform:uppercase;max-width:130px;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
-.finding{padding:15px}
+#rxArc{stroke:#2ee6a8}
+#resultsCard h3,.finding summary small,.finding .mono{overflow-wrap:anywhere;word-break:break-word}
+.finding{padding:15px;border-radius:14px}
+.finding summary{line-height:1.55}
 .jrow{grid-template-columns:1fr;gap:4px;padding:11px 0}
 .sev{font-size:11.5px;padding:4px 10px}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 details>summary{padding:10px 0;font-size:14.5px}
 h3{font-size:16.5px}
-#rxTabs{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:#0d0d0f;
- border-top:1px solid var(--line);padding:6px 2px calc(8px + env(safe-area-inset-bottom))}
-#rxTabs button{flex:1;background:none;border:0;color:#6d6d75;font-size:10.5px;font-weight:600;
- min-height:52px;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:0}
+#rxTabs{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:#0d0d0f;border-top:1px solid var(--line);padding:6px 2px calc(8px + env(safe-area-inset-bottom))}
+#rxTabs button{flex:1;background:none;border:0;color:#6d6d75;font-size:10.5px;font-weight:600;min-height:52px;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:0}
 #rxTabs button .ic{font-size:20px;line-height:1}
-#rxTabs button.on{color:#fafafa}
+#rxTabs button.on{color:#2ee6a8}
 #rxMoreSheet{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.62);display:none}
 #rxMoreSheet.open{display:block}
-#rxMoreSheet .sheet{position:absolute;left:0;right:0;bottom:0;background:#101012;
- border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:10px 14px calc(16px + env(safe-area-inset-bottom))}
-#rxMoreSheet .sheet button{display:flex;width:100%;align-items:center;gap:12px;background:none;border:0;
- border-bottom:1px solid var(--line);color:var(--txt);font-size:16px;padding:15px 4px;text-align:left;border-radius:0}
-#rxMoreSheet .sheet button:last-child{border-bottom:0}
+#rxMoreSheet .sheet{position:absolute;left:0;right:0;bottom:0;background:#101012;border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:6px 14px calc(16px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
+.rxGrp{font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--mut);text-transform:uppercase;padding:16px 4px 2px}
+#rxMoreSheet .sheet button.rxRow{display:flex;width:100%;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--txt);padding:14px 4px;text-align:left;border-radius:0;min-height:0}
+#rxMoreSheet .sheet button.rxRow:last-child{border-bottom:0}
+.rxRow .rxIc{font-size:20px;width:26px;text-align:center;flex:none}
+.rxRow .rxTx{flex:1;min-width:0}
+.rxRow .rxTt{display:block;font-size:16px;font-weight:600}
+.rxRow .rxSb{display:block;font-size:13px;color:var(--mut)}
+.rxRow .rxCh{color:var(--mut);font-size:16px;flex:none}
+.rxPills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.rxPill{border:1px solid var(--line);background:#141416;color:var(--txt);border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:600;min-height:38px}
+.rxPill.on{background:#2ee6a8;color:#06281d;border-color:transparent}
+.rxChips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.rxChip{border:1px solid var(--mint-line);background:var(--mint-soft);color:var(--mint-txt);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
+.rxVaptGo{width:100%;background:#141416;border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:13px 14px;text-align:left;font-size:14.5px;margin:0 0 4px}
+.rxVaptGo b{color:var(--mint-txt)}
+.rxGaugeCard{display:flex;gap:16px;align-items:center}
+.rxGauge{position:relative;width:118px;height:118px;flex:none}
+.rxGauge svg{transform:rotate(-90deg)}
+.rxGaugeC{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rxGaugeNum{font-size:34px;font-weight:800;line-height:1}
+.rxGaugeBand{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut);margin-top:4px}
+.rxGaugeSide{flex:1;min-width:0}
+.rxGaugeLbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut)}
+.rxGaugeLine{font-size:19px;font-weight:800;margin:3px 0}
+.rxSevLbl{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);margin:2px 0 8px}
+.rxSevRow{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px}
+.rxSevNm{width:64px;color:var(--mut);flex:none}
+.rxSevBar{flex:1;height:8px;background:#1c1c1f;border-radius:5px;overflow:hidden}
+.rxSevFill{height:100%;border-radius:5px}
+.rxSevCnt{width:28px;text-align:right;font-weight:700;flex:none}
+#dashStats .stat:nth-child(3){display:none}
+#view-dashboard .grid2>div:last-child{display:none}
+#view-vapt .pill{color:#8ff5cd!important;border-color:var(--mint-line)!important;background:var(--mint-soft)!important}
+.vapt-includes{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 12px}
+.vapt-includes li{border:1px solid var(--mint-line);background:var(--mint-soft);color:#d7fff0;border-radius:999px;padding:6px 12px;font-size:13px}
+#view-history a{color:#2ee6a8}
+#rxSevFilter{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.rxPath{display:inline-block;font-family:Consolas,monospace;font-size:11.5px;color:#8ff5cd;background:var(--mint-soft);border:1px solid rgba(46,230,168,.30);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle}
+.rxDesc{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:6px}
 </style>
 """
 
 MOBILE_BODY = r"""
 <div id="rxMoreSheet" onclick="if(event.target===this)rxMore(false)">
   <div class="sheet">
-    <button onclick="rxGo('surface')">&#9673;&nbsp; Attack Surface</button>
-    <button onclick="rxGo('repeater')">&#8635;&nbsp; Repeater</button>
-    <button onclick="rxGo('a403')">&#9940;&nbsp; 403 Tester</button>
-    <button onclick="rxGo('automation')">&#128337;&nbsp; Schedules &amp; Rules</button>
-    <button onclick="rxGo('settings')">&#9881;&nbsp; Settings</button>
+    <div class="rxGrp">Assess</div>
+    <button class="rxRow" onclick="rxGo('vapt')"><span class="rxIc">&#9889;</span><span class="rxTx"><span class="rxTt">VAPT</span><span class="rxSb">Full assessment with proof and PDF</span></span><span class="rxCh">&#8250;</span></button>
+    <button class="rxRow" onclick="rxGo('surface')"><span class="rxIc">&#9673;</span><span class="rxTx"><span class="rxTt">Attack surface</span><span class="rxSb">Assets, DNS and email security</span></span><span class="rxCh">&#8250;</span></button>
+    <button class="rxRow" onclick="rxGo('a403')"><span class="rxIc">&#9940;</span><span class="rxTx"><span class="rxTt">403 assessment</span><span class="rxSb">Access-control diagnostics</span></span><span class="rxCh">&#8250;</span></button>
+    <button class="rxRow" onclick="rxGo('repeater')"><span class="rxIc">&#8635;</span><span class="rxTx"><span class="rxTt">HTTP repeater</span><span class="rxSb">Replay and tweak requests</span></span><span class="rxCh">&#8250;</span></button>
+    <div class="rxGrp">Automate</div>
+    <button class="rxRow" onclick="rxGo('automation')"><span class="rxIc">&#128337;</span><span class="rxTx"><span class="rxTt">Schedules</span><span class="rxSb">Recurring scans</span></span><span class="rxCh">&#8250;</span></button>
+    <button class="rxRow" onclick="rxGoCustom()"><span class="rxIc">&#9763;</span><span class="rxTx"><span class="rxTt">Custom rules</span><span class="rxSb">Regex rule builder</span></span><span class="rxCh">&#8250;</span></button>
+    <div class="rxGrp">App</div>
+    <button class="rxRow" onclick="rxGo('settings')"><span class="rxIc">&#9881;</span><span class="rxTx"><span class="rxTt">Settings</span><span class="rxSb">Webhooks, API token, branding</span></span><span class="rxCh">&#8250;</span></button>
   </div>
 </div>
 <nav id="rxTabs">
@@ -1747,22 +2188,186 @@ MOBILE_BODY = r"""
   window.rxMore=function(open){document.getElementById('rxMoreSheet').classList.toggle('open',!!open);};
   window.rxGo=function(v){rxMore(false);show(v);rxSync(v);window.scrollTo(0,0);
     if(window._lastRx!==v){try{history.pushState({rx:v},'', '#'+v);}catch(e){}window._lastRx=v;}};
+  window.rxGoCustom=function(){rxGo('automation');setTimeout(function(){var el=document.getElementById('ccList');if(el)el.scrollIntoView();},500);};
   window.addEventListener('popstate',function(e){
     var v=(e.state&&e.state.rx)||''; if(!v){show('dashboard');rxSync('dashboard');window._lastRx='dashboard';return;}
     show(v);rxSync(v);window._lastRx=v;});
   function rxSync(v){
+    window._rxView=v;
     document.querySelectorAll('#rxTabs button').forEach(function(b){
       b.classList.toggle('on', b.dataset.rx===v || (b.dataset.rx==='more' && !MAIN[v]));
     });
+    rxTopbar();
+  }
+  function rxTopbar(){
+    var v=window._rxView||'dashboard';
+    var t=document.getElementById('viewTitle');
+    if(t) t.textContent=(v==='scanner')?'New scan':(((typeof TITLES!=='undefined'?TITLES:{})[v])||v);
+    var ex=document.getElementById('rxExport');
+    if(ex){
+      var rc=document.getElementById('resultsCard');
+      ex.classList.toggle('show', v==='findings' && rc && !rc.classList.contains('hidden'));
+    }
   }
   var _show=window.show;
   window.show=function(v){_show(v);rxSync(v);};
-  // Progress ring for the scanner (Concept B)
+  (function(){
+    var tb=document.querySelector('.topbar'); if(!tb) return;
+    var b=document.createElement('button'); b.id='rxExport'; b.className='rxExport'; b.textContent='Export';
+    b.onclick=function(){var a=document.getElementById('dlPdf'); if(a) a.click();};
+    tb.appendChild(b);
+  })();
+  var SHORT={full:'Full',recon:'Recon only',quick:'Quick',api:'API',passive:'Passive'};
+  var CHIPS={full:['External recon','Proof before reporting','PDF report'],recon:['External recon','PDF report'],quick:['Proof before reporting','PDF report'],api:['Proof before reporting','PDF report'],passive:['Proof before reporting','PDF report']};
+  function rxScanPills(){
+    var sel=document.getElementById('profile'); if(!sel||document.getElementById('rxPills')) return;
+    var card=sel.closest('.card'); if(!card) return;
+    var row=sel.closest('.row'); if(!row) return;
+    var pills=document.createElement('div'); pills.id='rxPills'; pills.className='rxPills';
+    Array.prototype.forEach.call(sel.options,function(o){
+      var p=document.createElement('button'); p.type='button'; p.className='rxPill'; p.dataset.p=o.value;
+      p.textContent=SHORT[o.value]||o.textContent;
+      p.onclick=function(){sel.value=o.value; rxSyncPills();};
+      pills.appendChild(p);
+    });
+    var chips=document.createElement('div'); chips.id='rxChips'; chips.className='rxChips';
+    var go=document.createElement('button'); go.type='button'; go.className='rxVaptGo';
+    go.innerHTML='Need a full assessment with a PDF report? <b>Open VAPT &#8250;</b>';
+    go.onclick=function(){rxGo('vapt');};
+    card.insertBefore(pills,row); card.insertBefore(chips,row); card.insertBefore(go,row);
+    sel.addEventListener('change',rxSyncPills);
+    rxSyncPills();
+  }
+  function rxSyncPills(){
+    var sel=document.getElementById('profile'); if(!sel) return;
+    document.querySelectorAll('#rxPills .rxPill').forEach(function(p){p.classList.toggle('on',p.dataset.p===sel.value);});
+    var chips=document.getElementById('rxChips'); if(!chips) return;
+    var list=CHIPS[sel.value]||CHIPS.full;
+    chips.innerHTML=list.map(function(c){return '<span class="rxChip">'+c+'</span>';}).join('');
+  }
+  var SEVORDER=['Critical','High','Medium','Low','Info'];
+  var SEVCOL={Critical:'var(--crit)',High:'var(--high)',Medium:'var(--med)',Low:'var(--low)',Info:'var(--info)'};
+  function rxBand(r){return r>=70?'Critical':r>=45?'High':r>=25?'Medium':'Low';}
+  function rxHomeBuild(){
+    var view=document.getElementById('view-dashboard'); if(!view||document.getElementById('rxGaugeCard')) return;
+    var stats=document.getElementById('dashStats'); if(!stats) return;
+    var g=document.createElement('div'); g.id='rxGaugeCard'; g.className='card rxGaugeCard';
+    g.innerHTML='<div class="rxGauge"><svg width="118" height="118" viewBox="0 0 118 118"><circle cx="59" cy="59" r="52" fill="none" stroke="#1c1c1f" stroke-width="11"/><circle id="rxGaugeArc" cx="59" cy="59" r="52" fill="none" stroke="#2ee6a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327"/></svg><div class="rxGaugeC"><div class="rxGaugeNum" id="rxGaugeNum">\u2014</div><div class="rxGaugeBand" id="rxGaugeBand">no scans</div></div></div><div class="rxGaugeSide"><div class="rxGaugeLbl">Latest risk</div><div class="rxGaugeLine" id="rxGaugeLine">\u2014 / 100</div><div class="muted" id="rxGaugeSub">No scans yet.</div></div>';
+    view.insertBefore(g,stats);
+    var sev=document.createElement('div'); sev.id='rxSevCard'; sev.className='card';
+    sev.innerHTML='<div class="rxSevLbl">Findings by severity</div><div id="rxSevRows" class="muted">No scans yet.</div>';
+    view.insertBefore(sev,stats.nextSibling);
+    var btn=document.createElement('button'); btn.id='rxHomeScan'; btn.type='button';
+    btn.innerHTML='&#9654; New scan'; btn.onclick=function(){rxGo('scanner');};
+    view.appendChild(btn);
+  }
+  function rxHomeUpdate(){
+    var stats=document.getElementById('dashStats'); if(!stats) return;
+    var cells=stats.querySelectorAll('.stat b');
+    var risk=cells.length>2?parseInt(cells[2].textContent,10):NaN;
+    var num=document.getElementById('rxGaugeNum'),band=document.getElementById('rxGaugeBand'),
+        line=document.getElementById('rxGaugeLine'),arc=document.getElementById('rxGaugeArc'),
+        sub=document.getElementById('rxGaugeSub');
+    if(!num) return;
+    if(isNaN(risk)){num.textContent='\u2014';band.textContent='no scans';line.textContent='\u2014 / 100';if(sub)sub.textContent='No scans yet.';return;}
+    num.textContent=risk; var b=rxBand(risk); band.textContent=b;
+    line.textContent=b+' - '+risk+' / 100';
+    if(arc) arc.style.strokeDashoffset=327-(327*risk/100);
+    rxSevCounts().then(function(c){
+      if(!c) return;
+      var parts=SEVORDER.map(function(s){return c[s]?c[s]+' '+s.toLowerCase():'';}).filter(Boolean);
+      if(sub) sub.textContent=parts.length?parts.join(', ')+' from your latest scan':'No findings in your latest scan.';
+      var rows=document.getElementById('rxSevRows'); if(!rows) return;
+      var max=Math.max.apply(null,SEVORDER.map(function(s){return c[s]||0;}).concat([1]));
+      rows.classList.remove('muted');
+      rows.innerHTML=SEVORDER.map(function(s){
+        var n=c[s]||0;
+        return '<div class="rxSevRow"><span class="rxSevNm">'+s+'</span><span class="rxSevBar"><span class="rxSevFill" style="width:'+(n/max*100)+'%;background:'+SEVCOL[s]+'"></span></span><span class="rxSevCnt">'+n+'</span></div>';
+      }).join('');
+    }).catch(function(){});
+  }
+  var _rxSevCache=null;
+  function rxSevCounts(){
+    return fetch('/api/scans').then(function(r){return r.json();}).then(function(j){
+      var done=(j.scans||[]).filter(function(s){return s.status==='done';});
+      if(!done.length) return null;
+      var id=done[0].id;
+      if(_rxSevCache&&_rxSevCache.id===id) return _rxSevCache.counts;
+      return fetch('/api/scans/'+id).then(function(r){return r.json();}).then(function(d){
+        var counts=(d.result&&d.result.counts)||null;
+        if(!counts){
+          var fs=(d.result&&d.result.findings)||d.findings||[];
+          counts={}; fs.forEach(function(f){counts[f.severity]=(counts[f.severity]||0)+1;});
+        }
+        _rxSevCache={id:id,counts:counts};
+        return counts;
+      });
+    });
+  }
+  function rxFindingsChrome(){
+    var rc=document.getElementById('resultsCard'); if(!rc) return;
+    var f=document.getElementById('findings'); if(!f) return;
+    var old=document.getElementById('rxSevFilter'); if(old) old.remove();
+    var cur=window._curFindings||[];
+    var counts={}; cur.forEach(function(x){counts[x.severity]=(counts[x.severity]||0)+1;});
+    var bar=document.createElement('div'); bar.id='rxSevFilter';
+    var mk=function(name,n){
+      var p=document.createElement('button'); p.type='button';
+      p.className='rxPill'+(((name==='All'&&!window._rxSevFilter)||window._rxSevFilter===name)?' on':'');
+      p.textContent=name+' '+n;
+      p.onclick=function(){window._rxSevFilter=(name==='All'?null:name); rxFindingsChrome(); rxEnhanceFindings();};
+      return p;
+    };
+    bar.appendChild(mk('All',cur.length));
+    SEVORDER.forEach(function(s){bar.appendChild(mk(s,counts[s]||0));});
+    f.parentNode.insertBefore(bar,f);
+    rxTopbar();
+  }
+  function rxEnhanceFindings(){
+    var cards=document.querySelectorAll('#findings details.finding');
+    var byFp={}; (window._curFindings||[]).forEach(function(x){byFp[x.fp||x.id]=x;});
+    var filt=window._rxSevFilter||null;
+    cards.forEach(function(d){
+      var sum=d.querySelector('summary'); if(!sum) return;
+      var sevEl=sum.querySelector('.sev'); var sev=sevEl?sevEl.textContent.trim():null;
+      d.style.display=(!filt||sev===filt)?'':'none';
+      if(!d.dataset.rxPath){
+        var sm=sum.querySelector('small'); var path='/';
+        if(sm){try{path=new URL(sm.textContent.trim()).pathname||'/';}catch(e){path='/';}}
+        var chip=document.createElement('span'); chip.className='rxPath'; chip.textContent=path;
+        sum.appendChild(chip); d.dataset.rxPath='1';
+      }
+      if(!d.dataset.rxDesc && d.dataset.fid && byFp[d.dataset.fid]){
+        var x=byFp[d.dataset.fid]; var txt=x.about||x.detail||'';
+        if(txt){
+          var div=document.createElement('div'); div.className='rxDesc';
+          div.textContent=txt.length>120?txt.slice(0,117)+'\u2026':txt;
+          sum.appendChild(div);
+        }
+        d.dataset.rxDesc='1';
+      }
+    });
+  }
+  if(window.loadHistory){
+    var _lh=window.loadHistory;
+    window.loadHistory=function(){var p; try{p=_lh.apply(this,arguments);}catch(e){p=null;}
+      if(p&&p.then){p.then(function(){try{rxHomeUpdate();}catch(e){}}).catch(function(){});}
+      else{try{rxHomeUpdate();}catch(e){}}
+      return p;};
+  }
+  if(window.renderResults){
+    var _rr=window.renderResults;
+    window.renderResults=function(){var r=_rr.apply(this,arguments); try{rxFindingsChrome();}catch(e){} return r;};
+  }
+  if(window.renderFindings){
+    var _rf=window.renderFindings;
+    window.renderFindings=function(){var r=_rf.apply(this,arguments); try{rxEnhanceFindings();}catch(e){} return r;};
+  }
   var live=document.getElementById('live');
   if(live){
     var wrap=document.createElement('div'); wrap.id='rxRing';
     wrap.innerHTML='<svg width="168" height="168"><circle cx="84" cy="84" r="74" fill="none" stroke="#1c1c1f" stroke-width="11"/>'
-      +'<circle id="rxArc" cx="84" cy="84" r="74" fill="none" stroke="#a3e635" stroke-width="11" stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/></svg>'
+      +'<circle id="rxArc" cx="84" cy="84" r="74" fill="none" stroke="#2ee6a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/></svg>'
       +'<div class="rc"><div class="rp" id="rxPct">0%</div><div class="rph" id="rxPhase">starting</div></div>';
     live.insertBefore(wrap, live.firstChild);
     var C=465;
@@ -1778,6 +2383,12 @@ MOBILE_BODY = r"""
       document.getElementById('rxPhase').textContent=ph;
     },600);
   }
+  try{rxScanPills();}catch(e){}
+  try{rxHomeBuild();rxHomeUpdate();
+    var ds=document.getElementById('dashStats');
+    if(ds&&window.MutationObserver){new MutationObserver(function(){try{rxHomeUpdate();}catch(e){}}).observe(ds,{childList:true,subtree:true});}
+  }catch(e){}
+  try{rxTopbar();}catch(e){}
 })();
 </script>
 """
@@ -1809,10 +2420,23 @@ def _scan_view(scan_id):
 
 
 def attach_meta(view):
-    """Merge analyst status/notes into findings."""
+    """Merge analyst status/notes into findings, then apply the
+    report-time false-positive exclusions for this target (4.0):
+    marked findings leave the findings list and appear in
+    ``excluded_false_positives`` with their reason. Input result is
+    never mutated (apply_exclusions_to_result copies). Live scans
+    (no stored result yet) are untouched."""
     if not view:
         return view
     result = view.get("result")
+    if result and _fp_mod is not None:
+        try:
+            result = _fp_mod.apply_exclusions_to_result(DB, result)
+            view = dict(view)
+            view["result"] = result
+            view["findings"] = result["findings"]
+        except Exception:
+            pass
     findings = result["findings"] if result else view.get("findings") or []
     if not findings:
         return view
@@ -2046,6 +2670,57 @@ class Handler(BaseHTTPRequestHandler):
                 "id": run_id, "scan_id": row[0], "target": row[1],
                 "started": row[2], "status": row[3],
                 "result": json.loads(row[4]) if row[4] else None})
+        if path == "/api/false-positives":
+            if _fp_mod is None:
+                return self._json({"error": "false-positive module unavailable"}, 503)
+            from urllib.parse import parse_qs as _pqs
+            _q = _pqs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            _target = (_q.get("target") or [""])[0]
+            _inc = (_q.get("include_removed") or [""])[0] in ("1", "true")
+            try:
+                _items = _fp_mod.list_false_positives(DB, _target, include_removed=_inc)
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"target": _target, "items": _items})
+        if path == "/api/custom-checks":
+            if _cc_mod is None:
+                return self._json({"error": "custom-check module unavailable"}, 503)
+            try:
+                return self._json({"checks": _cc_mod.list_custom_checks(DB)})
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+        if path == "/api/login-records":
+            if _loginrec is None:
+                return self._json({"error": "login-recorder module unavailable"}, 503)
+            _out = []
+            for _name in _loginrec.list_sessions():
+                # Names + origin + created_at ONLY — never values.
+                try:
+                    _sess = _loginrec.load_session(_name)
+                    _out.append({"name": _name, "origin": _sess.get("origin", ""),
+                                 "created_at": _sess.get("created_at", ""),
+                                 "cookie_names": [c.get("name", "") for c in _sess.get("cookies") or []],
+                                 "token_keys": sorted((_sess.get("tokens") or {}).keys())})
+                except Exception:
+                    _out.append({"name": _name, "origin": "", "created_at": ""})
+            return self._json({"sessions": _out})
+        if path.startswith("/api/login-records/") and path.endswith("/check"):
+            if _loginrec is None:
+                return self._json({"error": "login-recorder module unavailable"}, 503)
+            from urllib.parse import unquote as _unq
+            _name = _unq(path.split("/")[3])
+            try:
+                _sess = _loginrec.load_session(_name)
+                _chk = _loginrec.check_session(_sess)
+            except Exception as e:
+                return self._json({"error": str(e)}, 404)
+            return self._json({"name": _name, "check": _chk})
+        if path == "/api/nuclei/update-command":
+            if _nuclei_mod is None:
+                return self._json({"command": None, "note": "Nuclei module unavailable"})
+            _cmd = _nuclei_mod.update_templates_command()
+            return self._json({"command": _cmd,
+                               "note": None if _cmd else _nuclei_mod.NOT_INSTALLED_NOTE})
         if path.startswith("/api/scans/"):
             parts = path.split("/")
             scan_id = parts[3]
@@ -2068,6 +2743,27 @@ class Handler(BaseHTTPRequestHandler):
                                 "status": rstatus, "counts": counts})
                 return self._json({"retests": out})
             if len(parts) == 6 and parts[4] == "diff":
+                if _scandiff is not None:
+                    def _loader(sid):
+                        try:
+                            return _scandiff.load_scan_from_db(DB, sid)
+                        except Exception:
+                            return None
+                    try:
+                        d = _scandiff.diff_scans_by_id(parts[5], scan_id, _loader)
+                        sec = _scandiff.diff_to_report_section(d)
+                        return self._json({"warning": sec.get("warning"),
+                                           "summary": sec.get("summary"),
+                                           "sections": sec.get("sections"),
+                                           "new": d.get("new", []),
+                                           "changed": d.get("changed", []),
+                                           "fixed": d.get("fixed", []),
+                                           "unchanged": d.get("unchanged", []),
+                                           "still_open": d.get("unchanged", [])})
+                    except ValueError as e:
+                        return self._json({"error": str(e)}, 404)
+                    except Exception as e:
+                        return self._json({"error": str(e)}, 400)
                 a, b = _scan_view(scan_id), _scan_view(parts[5])
                 if not a or not b or not a.get("result") or not b.get("result"):
                     return self._json({"error": "both scans need results"}, 404)
@@ -2076,6 +2772,44 @@ class Handler(BaseHTTPRequestHandler):
                                          "severity": f["severity"],
                                          "url": f["url"]} for f in v]
                                    for k, v in d.items()})
+            if len(parts) == 5 and parts[4] == "report.xlsx":
+                if _exporters is None:
+                    return self._json({"error": "exporter module unavailable"}, 503)
+                conn = db()
+                row = conn.execute("SELECT result FROM scans WHERE id=?",
+                                   (scan_id,)).fetchone()
+                conn.close()
+                if not row or not row[0]:
+                    return self._json({"error": "not found"}, 404)
+                result = attach_meta({"target": json.loads(row[0]).get("target", ""),
+                                      "result": json.loads(row[0])})["result"]
+                data = _exporters.to_xlsx(result)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                self.send_header("Content-Disposition", f"attachment; filename=webscan-{scan_id[:8]}.xlsx")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if len(parts) == 5 and parts[4] == "report.export.json":
+                if _exporters is None:
+                    return self._json({"error": "exporter module unavailable"}, 503)
+                conn = db()
+                row = conn.execute("SELECT result FROM scans WHERE id=?",
+                                   (scan_id,)).fetchone()
+                conn.close()
+                if not row or not row[0]:
+                    return self._json({"error": "not found"}, 404)
+                result = attach_meta({"target": json.loads(row[0]).get("target", ""),
+                                      "result": json.loads(row[0])})["result"]
+                data = _exporters.to_json(result).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Disposition", f"attachment; filename=webscan-{scan_id[:8]}.export.json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if len(parts) == 5 and parts[4].startswith("report."):
                 conn = db()
                 row = conn.execute("SELECT result FROM scans WHERE id=?",
@@ -2380,8 +3114,27 @@ class Handler(BaseHTTPRequestHandler):
                     ("max_pages", "max_depth", "threads", "cookie", "profile",
                      "proxy", "cookie_b", "idor_anon", "auth_test", "openapi",
                      "cookie_admin", "nuclei", "nuclei_file", "zap_url",
-                     "har_file", "har_text", "client_name")
+                     "har_file", "har_text", "client_name", "ai",
+                     "nuclei_templates", "nuclei_templates_dir",
+                     "nuclei_severities", "nuclei_tags", "nuclei_timeout",
+                     "cve_cache_path", "nvd_api_key")
                     if body.get(k) not in (None, "", False)}
+            # Recorded session (4.0): resolve server-side by NAME only.
+            # apply_to_opts fills cookie/cookie_b from the stored
+            # session; _redact_opts keeps recorded_session as a name
+            # and the derived cookie as __stored__, so no session
+            # value is ever written into the scans table.
+            if body.get("recorded_session"):
+                if _loginrec is None:
+                    return self._json({"error": "login-recorder module unavailable"}, 503)
+                try:
+                    _sess = _loginrec.load_session(body["recorded_session"])
+                    opts = _loginrec.apply_to_opts(
+                        opts, _sess,
+                        role=body.get("recorded_role") or "primary")
+                    opts["recorded_session"] = body["recorded_session"]
+                except Exception as e:
+                    return self._json({"error": str(e)}, 400)
             if "waf_adaptive" in body:
                 opts["waf_adaptive"] = bool(body["waf_adaptive"])
             if "bizlogic" in body:
@@ -2451,6 +3204,190 @@ class Handler(BaseHTTPRequestHandler):
             new_id, state = launch_scan(target, opts, project or "")
             return self._json({"id": new_id, "state": state,
                                "resumed_from": scan_id, "note": note})
+        if path.startswith("/api/scans/") and path.endswith("/ticket/jira"):
+            if _ticket_mod is None:
+                return self._json({"error": "ticketing module unavailable"}, 503)
+            scan_id = path.split("/")[3]
+            view = _scan_view(scan_id)
+            if not view or not view.get("result"):
+                return self._json({"error": "scan not found"}, 404)
+            body = self._body()
+            findings = view["result"].get("findings") or []
+            sel = body.get("finding_ids_or_indices") or []
+            picked = []
+            for item in sel:
+                if isinstance(item, int):
+                    if 0 <= item < len(findings):
+                        picked.append(findings[item])
+                elif isinstance(item, str) and item.isdigit() and int(item) < len(findings):
+                    picked.append(findings[int(item)])
+                else:
+                    hit = next((f for f in findings if (f.get("fp") or fingerprint_of(f)) == item), None)
+                    if hit:
+                        picked.append(hit)
+            if not picked:
+                return self._json({"error": "no findings selected"}, 400)
+            # Settings are per-request ONLY: never stored, never logged.
+            settings = dict(body.get("settings") or {})
+            try:
+                results = _ticket_mod.send_to_jira(
+                    picked, settings,
+                    single_summary=bool(body.get("single_summary")),
+                    target=view["result"].get("target", ""))
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"results": results})
+        if path.startswith("/api/scans/") and path.endswith("/ticket/github"):
+            if _ticket_mod is None:
+                return self._json({"error": "ticketing module unavailable"}, 503)
+            scan_id = path.split("/")[3]
+            view = _scan_view(scan_id)
+            if not view or not view.get("result"):
+                return self._json({"error": "scan not found"}, 404)
+            body = self._body()
+            findings = view["result"].get("findings") or []
+            sel = body.get("finding_ids_or_indices") or []
+            picked = []
+            for item in sel:
+                if isinstance(item, int):
+                    if 0 <= item < len(findings):
+                        picked.append(findings[item])
+                elif isinstance(item, str) and item.isdigit() and int(item) < len(findings):
+                    picked.append(findings[int(item)])
+                else:
+                    hit = next((f for f in findings if (f.get("fp") or fingerprint_of(f)) == item), None)
+                    if hit:
+                        picked.append(hit)
+            if not picked:
+                return self._json({"error": "no findings selected"}, 400)
+            settings = dict(body.get("settings") or {})
+            if not settings.get("repo") and settings.get("owner") and settings.get("name"):
+                settings["repo"] = f"{settings['owner']}/{settings['name']}"
+            try:
+                results = _ticket_mod.send_to_github(
+                    picked, settings,
+                    single_summary=bool(body.get("single_summary")),
+                    target=view["result"].get("target", ""))
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"results": results})
+        if path == "/api/findings/false-positive":
+            if _fp_mod is None:
+                return self._json({"error": "false-positive module unavailable"}, 503)
+            body = self._body()
+            try:
+                rec = _fp_mod.mark_false_positive(
+                    DB, body.get("target", ""), body.get("finding") or body.get("identity") or "",
+                    body.get("reason", ""), marked_by=body.get("marked_by", ""))
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"ok": True, "record": rec})
+        if path == "/api/findings/false-positive/unmark":
+            if _fp_mod is None:
+                return self._json({"error": "false-positive module unavailable"}, 503)
+            body = self._body()
+            try:
+                rec = _fp_mod.unmark_false_positive(
+                    DB, body.get("target", ""), body.get("finding") or body.get("identity") or "",
+                    unmarked_by=body.get("unmarked_by", ""))
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"ok": True, "record": rec})
+        if path == "/api/findings/suggested-fix":
+            if _ai_mod is None:
+                return self._json({"error": "AI module unavailable"}, 503)
+            body = self._body()
+            view = _scan_view(body.get("scan_id", ""))
+            if not view or not view.get("result"):
+                return self._json({"error": "scan not found"}, 404)
+            finding = next((f for f in view["result"]["findings"]
+                            if (f.get("fp") or fingerprint_of(f)) == body.get("fp")), None)
+            if not finding:
+                return self._json({"error": "finding not found"}, 404)
+            snippet = _ai_mod.fix_snippet(finding, _ai_mod.AIBudget())
+            if not snippet:
+                return self._json({"available": False,
+                                   "text": "Local model unavailable — no suggested fix could be generated.",
+                                   "advisory": True})
+            # Display text only; finding["remediation"] is never touched.
+            return self._json({"available": True,
+                               "text": _ai_mod.format_suggested_fix(snippet),
+                               "advisory": True})
+        if path == "/api/findings/retest-fix":
+            if _ai_mod is None:
+                return self._json({"error": "AI module unavailable"}, 503)
+            body = self._body()
+            view = _scan_view(body.get("scan_id", ""))
+            if not view or not view.get("result"):
+                return self._json({"error": "scan not found"}, 404)
+            finding = next((f for f in view["result"]["findings"]
+                            if (f.get("fp") or fingerprint_of(f)) == body.get("fp")), None)
+            if not finding:
+                return self._json({"error": "finding not found"}, 404)
+            out = _ai_mod.retest_with_fix(
+                finding, body.get("fix_description", ""), _ai_mod.AIBudget(),
+                client=Client())
+            return self._json({"verdict": out.get("verdict"),
+                               "engine_verdict": out.get("engine_verdict"),
+                               "detail": out.get("detail"),
+                               "fix_summary": out.get("fix_summary"),
+                               "ai_available": out.get("ai_available")})
+        if path == "/api/custom-checks":
+            if _cc_mod is None:
+                return self._json({"error": "custom-check module unavailable"}, 503)
+            body = self._body()
+            try:
+                _cc_mod.create_custom_check(DB, body)
+            except Exception as e:
+                # CustomCheckError text verbatim — the builder shows it.
+                return self._json({"error": str(e)}, 400)
+            return self._json({"ok": True})
+        if path.startswith("/api/custom-checks/") and path.endswith("/test"):
+            if _cc_mod is None:
+                return self._json({"error": "custom-check module unavailable"}, 503)
+            from urllib.parse import unquote as _unq
+            name = _unq(path.split("/")[3])
+            body = self._body()
+            try:
+                defn = _cc_mod.get_custom_check(DB, name)
+                if not defn:
+                    return self._json({"error": "custom check not found"}, 404)
+                out = _cc_mod.run_custom_check(defn, Client(), body.get("url", ""))
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json(out)
+        if path == "/api/nuclei/update":
+            if _nuclei_mod is None:
+                return self._json({"error": "Nuclei module unavailable"}, 503)
+            # Explicit click only — never called during a scan.
+            ok, note = _nuclei_mod.run_template_update()
+            return self._json({"ok": ok, "note": note})
+        if path == "/api/login-records/record":
+            if _loginrec is None:
+                return self._json({"error": "login-recorder module unavailable"}, 503)
+            body = self._body()
+            name = (body.get("name") or "").strip()
+            if not name:
+                return self._json({"error": "session name required"}, 400)
+            steps = body.get("steps") or []
+            login_url = body.get("login_url") or body.get("target") or ""
+            try:
+                session = _loginrec.record_with_browser(
+                    steps, base_url=login_url,
+                    headless=body.get("headless", True))
+                session["name"] = name
+                if login_url:
+                    session["probe_url"] = login_url
+                _loginrec.save_session(session, name=name)
+            except Exception as e:
+                return self._json({"error": str(e)}, 503)
+            # Sanitized summary ONLY: name, origin, cookie names,
+            # token keys — never a password or session value.
+            return self._json({"ok": True, "name": name,
+                               "origin": session.get("origin", ""),
+                               "created_at": session.get("created_at", ""),
+                               "cookie_names": [c.get("name", "") for c in session.get("cookies") or []],
+                               "token_keys": sorted((session.get("tokens") or {}).keys())})
         if path.startswith("/api/scans/") and path.endswith("/stop"):
             scan_id = path.split("/")[3]
             with QUEUE_LOCK:
@@ -2506,6 +3443,26 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "deleted": len(doomed),
                                "assets_cleared": assets_cleared,
                                "skipped_running": len(rows) - len(doomed)})
+        if path.startswith("/api/custom-checks/"):
+            if _cc_mod is None:
+                return self._json({"error": "custom-check module unavailable"}, 503)
+            from urllib.parse import unquote as _unq
+            name = _unq(path.split("/")[3])
+            try:
+                ok = _cc_mod.delete_custom_check(DB, name)
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"ok": bool(ok)})
+        if path.startswith("/api/login-records/"):
+            if _loginrec is None:
+                return self._json({"error": "login-recorder module unavailable"}, 503)
+            from urllib.parse import unquote as _unq
+            name = _unq(path.split("/")[3])
+            try:
+                _loginrec.delete_session(name)
+            except Exception as e:
+                return self._json({"error": str(e)}, 404)
+            return self._json({"ok": True})
         if path.startswith("/api/scans/"):
             sid = path.split("/")[3]
             with LIVE_LOCK:
@@ -2541,7 +3498,7 @@ def main():
     ensure_api_token()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Reconix 3.31 UI -> http://127.0.0.1:{args.port}")
+    print(f"Reconix 4.2 UI -> http://127.0.0.1:{args.port}")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

@@ -99,6 +99,21 @@ def run_nuclei(ctx, target):
     return 0
 
 
+# ------------------------------------------------------- ticketing re-exports
+# Report-format + ticketing features live in wscan.ticketing (Jira Cloud
+# + GitHub Issues, user-supplied credentials only, per-issue results).
+# Re-exported here so existing integrations consumers have one import
+# point; the implementation is NOT duplicated here.
+try:
+    from .ticketing import (  # noqa: F401
+        JIRA_ISSUE_TYPE, JIRA_PRIORITY, finding_body,
+        github_labels_for, jira_issue_type_for, jira_labels_for,
+        jira_priority_for, send_findings_to_github, send_findings_to_jira,
+        send_to_github, send_to_jira)
+except Exception:  # pragma: no cover - ticketing is stdlib-only
+    pass
+
+
 def zap_alerts(ctx, target, api_url="http://127.0.0.1:8090", apikey=""):
     """Pull alerts from a running ZAP daemon's API."""
     api_url = api_url.rstrip("/")

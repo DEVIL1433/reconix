@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Reconix 3.31 — deep web vulnerability scanner with proof-based findings + EASM.
+Reconix 4.2 — deep web vulnerability scanner with proof-based findings + EASM.
 
   CLI:    python3 webscan.py http://127.0.0.1:8080 --profile full
   Web UI: python3 app.py            -> http://127.0.0.1:8777
@@ -104,6 +104,43 @@ def write_html(result, path):
                "<tr><th>#</th><th>Finding</th><th>Severity</th><th>Status</th>"
                f"<th>Owner</th><th>Target date</th></tr>{tracker_rows}</table>")
     exec_sum = esc(executive_summary(result)).replace("\n", "<br>")
+    _ai_nar = (result.get("ai_narrative") or "").strip()
+    ai_narrative_html = (
+        "<h2>AI narrative (local model — written from proven findings "
+        "only)</h2><div class='exec'>"
+        + esc(_ai_nar).replace("\n", "<br>") + "</div>") if _ai_nar else ""
+    _adv = ""
+    _cms_adv = ((result.get("cms") or {}).get("advisories") or [])
+    if _cms_adv:
+        _adv += ("<h2>CMS advisories (not vulnerabilities)</h2><div "
+                 "class='exec'>" + "<br>".join(
+                     esc(f"{a.get('title', '')}: {a.get('detail', '')}")
+                     for a in _cms_adv) + "</div>")
+    if result.get("nuclei") is not None:
+        try:
+            from wscan.nuclei import format_nuclei_section as _fn
+            _adv += ("<h2>Nuclei template matches (Nuclei-sourced, not "
+                     "engine-proven)</h2><div class='exec'>" +
+                     "<br>".join(esc(x) for x in _fn(result["nuclei"])) +
+                     "</div>")
+        except Exception:
+            pass
+    if result.get("cve_advisories") is not None:
+        try:
+            from wscan.cve import format_cve_section as _fc
+            _adv += ("<h2>CVE advisories (informational only — not "
+                     "findings)</h2><div class='exec'>" +
+                     "<br>".join(esc(x)
+                                 for x in _fc(result["cve_advisories"])) +
+                     "</div>")
+        except Exception:
+            pass
+    if result.get("excluded_false_positives"):
+        _adv += ("<h2>Excluded as false positive (reason)</h2><div "
+                 "class='exec'>" + "<br>".join(
+                     esc(f"{e.get('title', '')} — {e.get('url', '')} | "
+                         f"reason: {e.get('exclusion_reason', '')}")
+                     for e in result["excluded_false_positives"]) + "</div>")
     doc = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Reconix report — {esc(result['target'])}</title>
 <style>body{{font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:14.5px;line-height:1.6;margin:2rem;background:#0a0a0b;color:#d4d4d8}}
@@ -127,21 +164,22 @@ table{{border-collapse:collapse}}
 th,td{{border-color:#232326 !important}}
 th{{color:#8e8e96;text-align:left}}
 a{{color:#93c5fd}}</style></head>
-<body>{cover}<h1>Reconix 3.31 report</h1>
+<body>{cover}<h1>Reconix 4.2 report</h1>
 <p>Target: <code>{esc(result['target'])}</code> · Profile: {esc(result.get('profile',''))} ·
 Pages: {result['pages']} · Findings: {len(result['findings'])}
 (Critical {c.get('Critical',0)}, High {c.get('High',0)}, Medium {c.get('Medium',0)},
 Low {c.get('Low',0)}, Info {c.get('Info',0)}) · Risk {result.get('risk_score',0)}/100 ·
 {esc(result.get('finished_at',''))}</p>
 <h2>Executive summary</h2><div class="exec">{exec_sum}</div>
+{ai_narrative_html}
 {methodology}
-<h2>Findings</h2>{rows}{tracker}</body></html>"""
+<h2>Findings</h2>{rows}{_adv}{tracker}</body></html>"""
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(doc)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Reconix 3.31 — deep web vulnerability scanner")
+    ap = argparse.ArgumentParser(description="Reconix 4.2 — deep web vulnerability scanner")
     ap.add_argument("target", nargs="?", default="")
     ap.add_argument("--benchmark", action="store_true",
                     help="run the accuracy benchmark (recall on the test "
@@ -178,6 +216,10 @@ def main():
     ap.add_argument("--logo", help="logo image path (embedded in HTML report)")
     ap.add_argument("--har", help="HAR file to seed the scan from captured traffic")
     ap.add_argument("--har-out", help="export scan traffic/findings as HAR")
+    ap.add_argument("--ai", action="store_true",
+                    help="AI assistance via the local Ollama model "
+                         "(suggests only; the engine still proves every "
+                         "finding; off by default)")
     ap.add_argument("--nuclei", action="store_true", help="also run Nuclei if installed")
     ap.add_argument("--nuclei-file", help="import a Nuclei JSONL results file")
     ap.add_argument("--zap-url", help="running ZAP API base, e.g. http://127.0.0.1:8090")
@@ -222,6 +264,7 @@ def main():
         "har_file": args.har, "nuclei": args.nuclei,
         "nuclei_file": args.nuclei_file, "zap_url": args.zap_url,
         "zap_key": args.zap_key, "cookie_admin": args.cookie_admin,
+        "ai": args.ai,
     }
     if args.logo:
         import base64 as _b64

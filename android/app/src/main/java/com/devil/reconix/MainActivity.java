@@ -32,8 +32,8 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 public class MainActivity extends Activity {
-    private static final String VERSION_MARK = "3.31-v1";
-    private static final String APPV = "v1.11";
+    private static final String VERSION_MARK = "4.2-v1";
+    private static final String APPV = "v1.14";
     private WebView web;
     private TextView splash;
     private volatile boolean booting = false;

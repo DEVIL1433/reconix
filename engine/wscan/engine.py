@@ -8,13 +8,16 @@ import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from . import (api_scan, auth, bizlogic as bizlogic_mod,
+from . import (ai as ai_mod, api_scan, auth, bizlogic as bizlogic_mod,
                browser as browser_mod, chains as chains_mod, checks,
-               checks2, checks3, checks4, checks5,
-               extrecon as extrecon_mod,
-               har as har_mod, integrations, matrix as matrix_mod, passive,
-               proof as proof_mod,
-               recon as recon_mod, rules as rules_mod)
+               checks2, checks3, checks4, checks5, cloud as cloud_mod,
+               cms as cms_mod, customchecks as customchecks_mod,
+               cve as cve_mod, extrecon as extrecon_mod,
+               graphql as graphql_mod, har as har_mod, integrations,
+               jssecrets as jssecrets_mod, matrix as matrix_mod,
+               nuclei as nuclei_mod, passive, proof as proof_mod,
+               recon as recon_mod, rules as rules_mod,
+               takeover as takeover_mod, websocket as websocket_mod)
 from .calibrate import Calibrator
 from .client import Client, redirect_location
 from .core import Findings, crawl, fingerprint_of, params_of, parse_page
@@ -25,6 +28,7 @@ PROFILES = {
     "quick": ["recon", "headers", "dom", "cors", "hostheader", "passive",
               "discovery", "graphql", "jwt", "csrf", "rules", "bypass403"],
     "full": ["recon", "headers", "dom", "cors", "hostheader", "passive",
+             "takeover", "cloud", "cms",
              "sqli", "xss", "cmdi", "ssti", "lfi", "redirect", "crlf", "ssrf",
              "forms", "upload", "xxe", "graphql", "jwt", "discovery",
              "csrf", "rfi", "nosql", "ldap", "session", "idor",
@@ -36,7 +40,7 @@ PROFILES = {
             "ratelimit", "rules", "websocket", "smuggling", "bypass403",
             "deser"],
     "passive": ["recon", "headers", "passive", "discovery", "rules"],
-    "recon": ["extrecon", "headers", "passive", "rules"],
+    "recon": ["extrecon", "headers", "passive", "rules", "takeover"],
 }
 
 
@@ -58,6 +62,13 @@ class Ctx:
         self._time_stats = {}             # per-URL timing baseline cache
         self.client_b = None      # second session (IDOR)
         self.client_anon = None   # unauthenticated client (IDOR)
+        # AI assistance (3.32, opt-in only): None unless opts["ai"] is
+        # set, so default scans never touch the local model.
+        self.ai_budget = ai_mod.AIBudget() if (opts or {}).get("ai") else None
+        self.ai_payload_cache = {}
+        self.ai_stats = {"logic_attempted": 0, "logic_proven": 0,
+                         "ranking_applied": False, "narrative": False,
+                         "fix_retest": 0, "fix_snippets": 0}
 
 
 def _parse_request(text, page_url):
@@ -247,6 +258,18 @@ def run_scan(target, opts=None, on_event=None):
             session_guard()
 
     result_recon = {}
+    result_cve = {"advisories": [], "by_tech": {}, "notes": []}
+    result_cms = {}
+    result_nuclei = {"available": False, "note": None, "matches": [],
+                     "command": []}
+    # Set early (not at the later Nuclei block): the legacy external-
+    # scanner block runs BEFORE the AI-narrative block, so it must
+    # already know the new separated Nuclei path will run — otherwise
+    # integrations.run_nuclei would merge matches into findings in
+    # the same scan. When configured, the new path owns Nuclei.
+    _nuclei_new_run = any(opts.get(k) for k in (
+        "nuclei_templates", "nuclei_templates_dir", "nuclei_severities",
+        "nuclei_tags", "nuclei"))
     result_matrix = []
     result_extrecon = {}
     tested_urls = set()
@@ -266,6 +289,29 @@ def run_scan(target, opts=None, on_event=None):
             result_recon = recon_mod.run_recon(ctx, target)
         except Exception as e:
             emit("phase", f"Recon partial failure: {e}")
+    # ---- CVE advisories (informational only — never findings) --------
+    # Immediately after recon: the fingerprint is what CVE matching
+    # needs. A failed/offline lookup yields "no CVE data available",
+    # never a scan failure and never a finding.
+    try:
+        result_cve = cve_mod.lookup_cves_for_fingerprint(
+            result_recon.get("fingerprint") or {},
+            cache_path=opts.get("cve_cache_path"),
+            api_key=opts.get("nvd_api_key"))
+    except Exception as e:
+        emit("phase", f"CVE advisory lookup partial failure: {e}")
+        result_cve = {"advisories": [], "by_tech": {},
+                      "notes": [f"No CVE data available ({e})."]}
+    # ---- subdomain takeover (proven only) ------------------------------
+    # Runs after recon, on recon's subdomain list. Crawling has not
+    # happened yet at this point, so pages are not passed (the check
+    # only uses pages when no subdomain list is supplied).
+    if "takeover" in enabled and not ctx.stop.is_set():
+        try:
+            takeover_mod.takeover_check(
+                ctx, subdomains=result_recon.get("subdomains"), pages=[])
+        except Exception as e:
+            emit("phase", f"Takeover check partial failure: {e}")
 
     emit("phase", f"Crawling (max {max_pages} pages, depth {max_depth})...")
     pages, forms, js_urls, sitemap = crawl(client, target, max_pages,
@@ -437,6 +483,13 @@ def run_scan(target, opts=None, on_event=None):
         emit("phase", "Passive analysis (secrets, source maps, methods, "
                       "cache, stack traces, data exposure)...")
         js_eps = passive.secrets_scan(ctx, pages, js_urls)
+        # JS secrets (4.0): same capped JS list as the passive scan.
+        # Findings carry resp=None and masked proof by construction;
+        # reports must never re-attach a raw response or unmask.
+        try:
+            jssecrets_mod.js_secrets_check(ctx, pages, js_urls[:14])
+        except Exception as e:
+            emit("phase", f"JS secrets check partial failure: {e}")
         for ep in (js_eps or [])[:25]:
             if ep not in {u for u, _ in pages} and len(pages) < max_pages + 25:
                 r = client.fetch(ep)
@@ -458,6 +511,58 @@ def run_scan(target, opts=None, on_event=None):
         passive.cache_control_scan(ctx, pages)
         passive.excessive_data_scan(ctx, pages)
         passive.broken_links_scan(ctx, pages)
+
+    # ---- cloud + CMS phases (after the passive layer) ----------------
+    if "cloud" in enabled and not ctx.stop.is_set():
+        emit("phase", "Cloud storage checks (buckets, references)...")
+        try:
+            cloud_mod.cloud_check(ctx, pages=pages)
+            # JS-bundle text is not retained as page entries, so feed
+            # it through explicitly (capped, like the passive scan).
+            _js_refs = []
+            for _js in js_urls[:14]:
+                try:
+                    _jr = client.fetch(_js)
+                    if _jr.status == 200 and _jr.body:
+                        _js_refs.extend(
+                            cloud_mod.extract_cloud_references(_jr.body))
+                except Exception:
+                    pass
+            if _js_refs:
+                cloud_mod.check_cloud_references(
+                    ctx, sorted(set(_js_refs)))
+        except Exception as e:
+            emit("phase", f"Cloud check partial failure: {e}")
+    if "cms" in enabled and not ctx.stop.is_set():
+        emit("phase", "CMS detection (version/plugins are advisories only)...")
+        try:
+            result_cms = cms_mod.cms_scan(ctx, target, pages=pages)
+        except Exception as e:
+            emit("phase", f"CMS check partial failure: {e}")
+    # ---- custom checks (proven findings only) -------------------------
+    # After the crawl/param-URL phase. One bad definition must never
+    # affect a scan: the runner never raises, and this whole phase is
+    # belt-and-braces guarded anyway.
+    try:
+        _defs = customchecks_mod.list_custom_checks(
+            opts.get("custom_checks_db"), enabled_only=True)
+        if _defs and param_urls:
+            _cc = customchecks_mod.run_custom_checks(
+                _defs, client, param_urls)
+            for _f in _cc.get("findings") or []:
+                try:
+                    ctx.findings.add(
+                        _f.get("severity", "Medium"),
+                        _f.get("title", "Custom Check"),
+                        _f.get("url", target), _f.get("detail", ""),
+                        proof=_f.get("proof", ""),
+                        param=_f.get("param", ""), resp=None,
+                        cwe=_f.get("cwe", ""),
+                        payload=_f.get("payload", ""))
+                except Exception:
+                    pass
+    except Exception as e:
+        emit("phase", f"Custom checks partial failure: {e}")
 
     session_guard()
     # ---- active injection layer -----------------------------------------
@@ -551,6 +656,23 @@ def run_scan(target, opts=None, on_event=None):
             emit("phase", "Business-logic: the supplied HAR contains no "
                           "state-changing steps — skipped.")
 
+    # ---- AI-proposed logic tests: the model SUGGESTS, the engine PROVES --
+    # Opt-in only (opts["ai"]); every idea is attempted and only reported
+    # when the attempt itself proves the flaw. Unproven ideas vanish.
+    if ctx.ai_budget is not None and not ctx.stop.is_set():
+        progress(86, "AI logic tests")
+        emit("phase", "AI-proposed logic tests (local model suggests, "
+                      "engine proves)...")
+        try:
+            _att, _prov = ai_mod.logic_check(ctx, pages, forms)
+            ctx.ai_stats["logic_attempted"] = _att
+            ctx.ai_stats["logic_proven"] = _prov
+            if _prov:
+                emit("phase", f"AI logic tests: {_prov} proven finding(s) "
+                              f"from {_att} attempt(s).")
+        except Exception as e:
+            emit("phase", f"AI logic tests partial failure: {e}")
+
     # ---- session / IDOR / misc ---------------------------------------------
     if "session" in enabled:
         checks2.session_checks(ctx, target, pages)
@@ -610,11 +732,22 @@ def run_scan(target, opts=None, on_event=None):
     if "xxe" in enabled and not ctx.stop.is_set():
         checks.xxe_check(ctx, page_urls, forms)
     if "graphql" in enabled:
-        checks.graphql_check(ctx, target)
-        checks3.graphql_deep_check(ctx, target)
+        # 4.0 replacement: the new scan covers introspection, access
+        # control, batching, depth and suggestions; keeping the old
+        # checks too would duplicate titles.
+        try:
+            graphql_mod.graphql_scan(ctx, target, pages=pages)
+        except Exception as e:
+            emit("phase", f"GraphQL check partial failure: {e}")
     if "websocket" in enabled and not ctx.stop.is_set():
         emit("phase", "WebSocket security checks...")
-        checks3.websocket_check(ctx, target)
+        # 4.0 replacement: picks up ctx.extra["ws_urls"] + ws(s):// URLs
+        # in bodies. WS findings have resp=None — reports show payload
+        # + proof, never a curl PoC (there is none to show).
+        try:
+            websocket_mod.websocket_scan(ctx, target, pages=pages)
+        except Exception as e:
+            emit("phase", f"WebSocket check partial failure: {e}")
     if "smuggling" in enabled and not ctx.stop.is_set():
         emit("phase", "HTTP request smuggling probes...")
         checks3.smuggling_check(ctx, target)
@@ -634,7 +767,7 @@ def run_scan(target, opts=None, on_event=None):
         if opts.get("nuclei_file"):
             n = integrations.import_nuclei_jsonl(ctx, opts["nuclei_file"])
             emit("phase", f"Nuclei import: {n} new finding(s).")
-        if opts.get("nuclei"):
+        if opts.get("nuclei") and not _nuclei_new_run:
             n = integrations.run_nuclei(ctx, target)
             emit("phase", f"Nuclei run: {n} new finding(s).")
         if opts.get("zap_url"):
@@ -677,6 +810,51 @@ def run_scan(target, opts=None, on_event=None):
     session_guard()
     items = findings.sorted()
     _verify_findings(ctx, items)
+
+    # ---- AI ranking (display order only — never adds or drops findings) --
+    if ctx.ai_budget is not None and not ctx.stop.is_set():
+        _ranked = ai_mod.rank_items(items, ctx.ai_budget)
+        if _ranked is not items:
+            items = _ranked
+            ctx.ai_stats["ranking_applied"] = True
+    # ---- AI narrative (written from proven findings only) ----------------
+    _ai_narrative = ""
+    if ctx.ai_budget is not None and not ctx.stop.is_set():
+        try:
+            _ai_narrative = ai_mod.report_narrative(target, items,
+                                                    ctx.ai_budget) or ""
+        except Exception:
+            _ai_narrative = ""
+        ctx.ai_stats["narrative"] = bool(_ai_narrative)
+
+    # ---- Nuclei template matches (separate section, never findings) --
+    # Alongside the AI-narrative block so it can never affect
+    # verification, counts, groups or risk. Only runs when the scan
+    # was configured for it (templates/dir/filters, or the legacy
+    # Nuclei checkbox); otherwise the section records the skip.
+    _nuclei_cfg = _nuclei_new_run
+    if _nuclei_cfg and not ctx.stop.is_set():
+        try:
+            result_nuclei = nuclei_mod.run_nuclei_scan(
+                target,
+                template_paths=opts.get("nuclei_templates"),
+                templates_dir=opts.get("nuclei_templates_dir"),
+                severities=opts.get("nuclei_severities"),
+                tags=opts.get("nuclei_tags"),
+                timeout=opts.get("nuclei_timeout", 300))
+            _nuclei_new_run = True
+            if result_nuclei.get("note"):
+                emit("phase", f"Nuclei: {result_nuclei['note']}")
+        except Exception as e:
+            emit("phase", f"Nuclei partial failure: {e}")
+            result_nuclei = {"available": False,
+                             "note": f"Nuclei run failed ({e}).",
+                             "matches": [], "command": []}
+    elif not _nuclei_cfg:
+        result_nuclei = {"available": False,
+                         "note": "Nuclei template checks were skipped "
+                                 "(no templates configured).",
+                         "matches": [], "command": []}
 
     # ---- evidence screenshots for the serious findings ------------------
     if "browser" in enabled and not ctx.stop.is_set():
@@ -724,6 +902,18 @@ def run_scan(target, opts=None, on_event=None):
         "risk_score": score, "risk_grade": grade,
         "groups": group_findings(items),
         "coverage": coverage,
+        "cms": result_cms,
+        "nuclei": result_nuclei,
+        "cve_advisories": result_cve,
+        "ai": {"enabled": ctx.ai_budget is not None,
+               "llm_calls": ctx.ai_budget.calls if ctx.ai_budget else 0,
+               "logic_attempted": ctx.ai_stats["logic_attempted"],
+               "logic_proven": ctx.ai_stats["logic_proven"],
+               "ranking_applied": ctx.ai_stats["ranking_applied"],
+               "narrative": ctx.ai_stats["narrative"],
+               "fix_retest": ctx.ai_stats["fix_retest"],
+               "fix_snippets": ctx.ai_stats["fix_snippets"]},
+        "ai_narrative": _ai_narrative,
         "suppressed_findings": findings.suppressed_items,
         "calibration": (ctx.calibrator.summary if ctx.calibrator else ""),
         "duration_s": round(time.time() - started, 1),

@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import uuid
 
+from . import ai as ai_mod
 from .core import params_of, parse_page, with_param
 from .calibrate import median_time, similarity as _nsim
 from .calibrate import waf_blocked as _waf_blocked
@@ -132,6 +133,30 @@ def sqli_url(ctx, url):
                         + (f" | DBMS fingerprinted: {dbms}" if dbms else ""),
                   param=name, resp=r, cwe="CWE-89", payload=orig + probe)
             continue
+        # AI payload ideas (3.32, opt-in): suggested probes go through
+        # the same error-detection proof as the fixed probes above.
+        if getattr(ctx, "ai_budget", None) is not None:
+            _ai_hit = None
+            try:
+                for _ap in ai_mod.payload_ideas_for(ctx, "sqli", url):
+                    _r = client.fetch(with_param(url, name, orig + _ap))
+                    _err = _sql_error_in(_r.body)
+                    if _r.status and _err:
+                        _ai_hit = (_r, _err, _ap)
+                        break
+            except Exception:
+                _ai_hit = None
+            if _ai_hit:
+                _r, _err, _ap = _ai_hit
+                F.add("High", "SQL Injection (error-based)", url,
+                      f"Parameter '{name}' breaks out of the SQL query; the "
+                      "database error is reflected in the response. "
+                      "(Probe suggested by the local AI model; the "
+                      "database error itself is the proof.)",
+                      proof=f"DB error in response: {_err}",
+                      param=name, resp=_r, cwe="CWE-89",
+                      payload=orig + _ap)
+                continue
         # 2) UNION marker extraction — the marker is built by SQL string
         # concatenation ('WSUN'||'ION9' / CONCAT), so the literal marker
         # never appears in the request: a page that merely REFLECTS the
@@ -304,6 +329,15 @@ XSS_WAF_VARIANTS = [
 def xss_url(ctx, url):
     client, F = ctx.client, ctx.findings
     payloads = XSS_PAYLOADS + list(getattr(ctx, "extra", {}).get("xss", []))
+    # AI payload ideas (3.32, opt-in): suggested payloads join the fixed
+    # list and go through the exact same reflection + confirmation proof.
+    if getattr(ctx, "ai_budget", None) is not None:
+        try:
+            for _ap in ai_mod.payload_ideas_for(ctx, "xss", url):
+                if _ap not in payloads:
+                    payloads.append(_ap)
+        except Exception:
+            pass
     for name, _v in params_of(url):
         hit = None
         for payload in payloads:
@@ -797,8 +831,17 @@ def forms_check(ctx, page_url, form, all_page_urls):
         # unique per field so one form's stored payload can't be attributed
         # to another form that merely views the same page
         stored_marker = f"{MARK}st{uuid.uuid4().hex[:8]}"
-        # reflected / error checks
-        for payload in XSS_PAYLOADS:
+        # reflected / error checks (AI ideas join the fixed list when
+        # enabled, and go through the same reflection proof)
+        _form_payloads = list(XSS_PAYLOADS)
+        if getattr(ctx, "ai_budget", None) is not None:
+            try:
+                for _ap in ai_mod.payload_ideas_for(ctx, "xss", page_url):
+                    if _ap not in _form_payloads:
+                        _form_payloads.append(_ap)
+            except Exception:
+                pass
+        for payload in _form_payloads:
             action, r = _submit_form(client, page_url, form,
                                      _form_fields(form, {fname: payload}))
             if r.status and payload in (r.body or ""):
