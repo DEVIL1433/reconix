@@ -1,4 +1,17 @@
-# Reconix 3.17 — Deep Web Vulnerability Scanner + EASM
+# Reconix 3.31 — Deep Web Vulnerability Scanner + EASM
+
+**New in 3.31 (weekly improvement, 2026-11-02):** two genuinely missing
+checks, both proof-guarded. **Third-party Subresource Integrity** —
+a passive scan of every crawled page for cross-origin scripts and
+stylesheets loaded without a usable `integrity` hash (missing, malformed,
+or present without `crossorigin`, which makes the browser skip the
+check) — OWASP Top 10:2025 A03/A08 supply-chain coverage, CWE-829;
+same-origin assets are skipped and no third-party file is fetched.
+**XPath injection** — error-based (parser error absent from the
+baseline) and boolean-differential (TRUE/FALSE probes must diverge
+sharply, so mere payload reflection cannot qualify) — CWE-643, the
+one injection family the engine lacked alongside SQL, NoSQL and LDAP.
+Tests: 6 new, full suite green (see below).
 
 3.5 renames the tool to **Reconix** and adds two analyst-experience
 features: every finding now carries a plain-language "What is it?"
@@ -311,13 +324,15 @@ CLI options: `--profile quick|full|api|passive`, `--checks a,b,c`,
   extraction, full site-map graph, broken-link report.
 - **Passive**: secrets in pages/JS (AWS keys, private keys, DB strings),
   source-map exposure, HTTP methods (OPTIONS/TRACE), HTTPS-redirect posture,
-  redirect chains, stack traces, cache-control, excessive JSON data exposure.
+  redirect chains, stack traces, cache-control, excessive JSON data exposure,
+  third-party Subresource Integrity (missing/invalid/ignored hashes).
 - **Active checks**: SQLi (error/boolean/time/UNION), XSS (reflected, stored,
   blind-OOB, DOM source->sink), OS command injection (computed marker),
   SSTI, LFI/traversal, RFI, SSRF (OOB + cloud metadata), XXE (in-band +
   blind), file upload (storage + PHP RCE), JWT (alg=none, weak-secret crack),
   GraphQL introspection, CORS, open redirect, CRLF, host-header injection,
   CSRF (no-token + auto-submit PoC), NoSQL operator injection, LDAPi,
+  XPath injection (error + boolean differential),
   session pre-auth issuance, cache poisoning, rate-limit burst, race burst,
   sensitive-path discovery.
 - **Access control**: IDOR via dual-session replay (second cookie and/or

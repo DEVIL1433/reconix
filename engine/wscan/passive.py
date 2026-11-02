@@ -3,6 +3,7 @@ TLS/redirect posture, stack traces, excessive data exposure, broken links."""
 import json
 import re
 import urllib.parse
+from html.parser import HTMLParser
 
 SECRET_PATTERNS = [
     (r"AKIA[0-9A-Z]{16}", "AWS access key ID", "High"),
@@ -209,6 +210,109 @@ def excessive_data_scan(ctx, pages):
                   "filter server-side, never rely on the client to hide them.",
                   proof="keys: " + ", ".join(sorted(keys)), resp=r,
                   dedupe_key=("excess", url), cwe="CWE-213")
+
+
+_SRI_VALUE = re.compile(r"^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}$")
+
+
+class _AssetParser(HTMLParser):
+    """Collects <script src> and stylesheet <link href> tags with
+    their integrity / crossorigin attributes (the crawl parser drops
+    both, and this check needs them)."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.assets = []  # (kind, url, integrity, crossorigin)
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == "script" and a.get("src"):
+            self.assets.append(("script", a["src"],
+                                a.get("integrity", ""),
+                                a.get("crossorigin", "")))
+        elif tag == "link" and a.get("href"):
+            rel = (a.get("rel") or "").lower()
+            as_attr = (a.get("as") or "").lower()
+            if "stylesheet" in rel or ("preload" in rel
+                                      and as_attr in ("script", "style")):
+                self.assets.append(("stylesheet", a["href"],
+                                    a.get("integrity", ""),
+                                    a.get("crossorigin", "")))
+
+
+def third_party_integrity_scan(ctx, pages):
+    """Subresource Integrity (SRI) for third-party assets — OWASP
+    Top 10:2025 A03/A08 supply-chain coverage, previously absent:
+    a script or stylesheet loaded from another origin runs in the
+    page's origin, so a compromised CDN (or a hijacked DNS record)
+    turns into code execution on this site unless the browser can
+    verify the file against a hash the site pinned.
+
+    Passive only: the evidence is the tag itself in a crawled page —
+    no third-party asset is fetched. Same-origin assets are skipped
+    (SRI buys nothing there: the same origin that serves the page
+    serves the file), as are data:/blob: URLs. One finding per
+    asset per issue, so a shared header script is not reported once
+    per page."""
+    F = ctx.findings
+    for page_url, r in pages:
+        body = r.body if hasattr(r, "body") else ""
+        if not body:
+            continue
+        parser = _AssetParser()
+        try:
+            parser.feed(body)
+        except Exception:
+            continue
+        page_host = urllib.parse.urlsplit(page_url).netloc.lower()
+        for kind, src, integrity, crossorigin in parser.assets:
+            asset = urllib.parse.urljoin(page_url, src)
+            parts = urllib.parse.urlsplit(asset)
+            if parts.scheme not in ("http", "https"):
+                continue
+            if parts.netloc.lower() == page_host:
+                continue
+            label = "Script" if kind == "script" else "Stylesheet"
+            if not integrity:
+                F.add("Medium" if kind == "script" else "Low",
+                      f"Third-Party {label} Without Subresource Integrity",
+                      page_url,
+                      f"This page loads a {kind} from another origin "
+                      f"({parts.netloc}) with no integrity attribute. If "
+                      "that third party is compromised, its code runs "
+                      "here with this site's authority and nothing on "
+                      "this page can tell it changed. Pin a hash "
+                      "(integrity + crossorigin=\"anonymous\") or "
+                      "self-host the file.",
+                      proof=f"<{kind} src=\"{asset}\"> — no integrity "
+                            f"attribute",
+                      param=asset, resp=r, cwe="CWE-829",
+                      dedupe_key=("sri-missing", asset))
+            elif not all(_SRI_VALUE.match(tok)
+                         for tok in integrity.split()):
+                F.add("Medium",
+                      "Invalid Subresource Integrity Value",
+                      page_url,
+                      f"The {kind} from {parts.netloc} carries an "
+                      "integrity attribute the browser cannot use "
+                      "(expected sha256/sha384/sha512 + base64 hash), "
+                      "so the file is effectively unverified — the "
+                      "same exposure as no integrity at all.",
+                      proof=f"integrity=\"{integrity}\"",
+                      param=asset, resp=r, cwe="CWE-829",
+                      dedupe_key=("sri-invalid", asset))
+            elif not crossorigin:
+                F.add("Medium",
+                      "Subresource Integrity Ignored: Missing crossorigin",
+                      page_url,
+                      f"The {kind} from {parts.netloc} pins a hash but "
+                      "has no crossorigin attribute, so the browser "
+                      "does not perform the SRI check on a cross-origin "
+                      "fetch and a tampered file still executes. Add "
+                      "crossorigin=\"anonymous\".",
+                      proof=f"integrity=\"{integrity}\" — no crossorigin",
+                      param=asset, resp=r, cwe="CWE-829",
+                      dedupe_key=("sri-nocors", asset))
 
 
 def broken_links_scan(ctx, pages):

@@ -540,7 +540,7 @@ def scheduler_loop():
 
 
 UI = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Reconix 3.28 — Vulnerability Scanner & Attack Surface</title>
+<title>Reconix 3.31 — Vulnerability Scanner & Attack Surface</title>
 <style>
 :root{--bg:#0a0a0b;--panel:#101012;--panel2:#141416;--line:#232326;--txt:#dcdce0;
 --mut:#8e8e96;--crit:#f4534a;--high:#f59e0b;--med:#eab308;--low:#22c55e;--info:#8e8e96;--navy:#f2f2f4}
@@ -656,7 +656,7 @@ pre .hk{color:var(--navy);font-weight:700}
 
 </style></head><body>
 <aside>
-  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.28</span></div>
+  <div class="logo">RECONI<span class="xgrad">X</span> <span class="ver">3.31</span></div>
   <div class="tagline">DISCOVER · SCAN · SECURE</div>
   <nav id="nav">
     <button data-view="dashboard" class="active" onclick="show('dashboard')">Dashboard</button>
@@ -1659,7 +1659,7 @@ loadHistory(); loadProjects(); loadSchedules(); loadRepeatHistory(); loadRules()
 </body></html>"""
 
 
-# --- Mobile app shell (Reconix 3.28) -------------------------------------
+# --- Mobile app shell (Reconix 3.31) -------------------------------------
 # Injected into the UI only when the request comes from the Android app
 # (User-Agent contains "ReconixAndroid"). Desktop/laptop UI is untouched.
 MOBILE_HEAD = r"""
@@ -2541,7 +2541,7 @@ def main():
     ensure_api_token()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Reconix 3.28 UI -> http://127.0.0.1:{args.port}")
+    print(f"Reconix 3.31 UI -> http://127.0.0.1:{args.port}")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

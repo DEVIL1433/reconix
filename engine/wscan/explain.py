@@ -82,6 +82,14 @@ _RULES = [
      "checking the names. A name like __proto__ reaches the master copy "
      "every object is built from, so one request can quietly change "
      "settings — like prices or admin flags — for everyone using the app."),
+    (("subresource integrity", "third-party"),
+     "The page runs code from another company's server without checking "
+     "it first. If that company is hacked, the changed code runs here "
+     "as if it were part of this site."),
+    (("xpath injection",),
+     "The website passes what a user types straight into its XML search. "
+     "An attacker can rewrite that search and pull out records they "
+     "should not see."),
     (("deserialization", "insecure deserialization"),
      "The app rebuilds objects from text a user sends, without checking "
      "it first. A crafted object can make the server run the attacker's "

@@ -41,6 +41,8 @@ REMEDIATION = {
     "Version Disclosure": "Suppress version banners (Server, X-Powered-By, generator meta) and patch the disclosed component.",
     "Discovered Content": "Review whether this path should be publicly reachable; protect or remove it.",
     "403 Forbidden Bypass": "Enforce authorization on the origin for every path variant: normalize the path (case, URL encoding, dot segments, trailing separators) BEFORE the access check, and never trust client-supplied URL-override (X-Original-URL / X-Rewrite-URL) or forwarded-IP headers unless they come from a verified proxy. Deny by default.",
+    "Subresource Integrity": "Add an integrity hash (sha384) plus crossorigin=\"anonymous\" to every cross-origin script/stylesheet, or self-host the file. Regenerate the hash whenever the file changes.",
+    "XPath Injection": "Never build XPath queries by concatenating user input. Use parameterized/variable-bound XPath queries, or validate the input against an allow-list before use.",
 }
 
 

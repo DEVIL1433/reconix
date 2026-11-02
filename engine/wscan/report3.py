@@ -203,6 +203,16 @@ ATTACKS = {
         "Hijack or predict a user's session and act as them",
         "Stay logged in as the victim after they believe they logged out (fixation/weak expiry)",
     ],
+    "subresource integrity": [
+        "Run attacker code in every visitor's browser if the third-party file is tampered with",
+        "Steal sessions, keystrokes or payment details from the trusted page",
+        "Deface the page or redirect visitors, using the site's own authority",
+    ],
+    "xpath injection": [
+        "Read XML records the query was never meant to return",
+        "Bypass login checks built on XPath (username/password matching)",
+        "Extract the whole document node by node through blind queries",
+    ],
     "cache poisoning": [
         "Store a malicious response in the shared cache so every visitor gets it",
         "Deface pages or inject scripts for all users of the cached URL",
@@ -346,6 +356,7 @@ ATTACKS_BY_CWE = {
     "CWE-113": "header", "CWE-524": "cache deception",
     "CWE-444": "smuggling", "CWE-16": "header",
     "CWE-1321": "prototype pollution", "CWE-502": "deserialization",
+    "CWE-829": "subresource integrity", "CWE-643": "xpath injection",
 }
 
 
@@ -452,7 +463,7 @@ def _wrap(text, width=96):
 
 def to_pdf(result):
     """Minimal valid PDF: summary page + one block per finding."""
-    lines = ["Reconix 3.28 - Vulnerability Report", ""]
+    lines = ["Reconix 3.31 - Vulnerability Report", ""]
     lines += _wrap(executive_summary(result))
     lines += ["", "=" * 90, ""]
     for f in result.get("findings", []):

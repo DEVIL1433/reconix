@@ -31,7 +31,7 @@ PROFILES = {
              "cachepoison", "ratelimit", "race", "rules", "api",
              "browser", "matrix", "extrecon", "smuggling", "websocket",
              "bypass403", "bizlogic", "proof", "chains",
-             "protopollution", "deser"],
+             "protopollution", "deser", "xpath"],
     "api": ["recon", "headers", "cors", "passive", "graphql", "jwt", "api",
             "ratelimit", "rules", "websocket", "smuggling", "bypass403",
             "deser"],
@@ -451,6 +451,7 @@ def run_scan(target, opts=None, on_event=None):
             page_urls = [u for u, _ in pages]
             param_urls = [u for u, _ in pages if params_of(u)]
         passive.methods_check(ctx, target)
+        passive.third_party_integrity_scan(ctx, pages)
         passive.transport_check(ctx, target)
         passive.redirect_chain(ctx, target)
         passive.stack_trace_scan(ctx, pages)
@@ -485,6 +486,8 @@ def run_scan(target, opts=None, on_event=None):
         url_checks.append(checks2.ldap_url)
     if "deser" in enabled:
         url_checks.append(checks5.deser_url)
+    if "xpath" in enabled:
+        url_checks.append(checks.xpath_url)
     if url_checks and not ctx.stop.is_set():
         emit("phase", f"Active checks on {len(param_urls)} parameterized "
                       f"URLs ({len(url_checks)} check types)...")

