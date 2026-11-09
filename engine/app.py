@@ -2064,32 +2064,35 @@ MOBILE_HEAD = r"""<meta name="viewport" content="width=device-width, initial-sca
 <style id="rxMobileCss">
 html{-webkit-text-size-adjust:100%}
 *{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-body{display:block;font-size:15px;--mint:#2ee6a8;--mint-soft:rgba(46,230,168,.12);--mint-line:rgba(46,230,168,.38);--mint-txt:#8ff5cd}
-aside{position:fixed;top:0;left:0;right:0;width:auto;height:52px;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--line);z-index:60;padding:0 14px}
-aside .logo{font-size:19px;padding:0}
+html body{display:block;font-size:15px;background:#0d1117}
+html body aside{position:fixed;top:0;left:0;right:0;width:auto;height:56px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;border-right:0;border-bottom:1px solid #232a35;background:#0d1117;z-index:60;padding:0 14px}
+aside .logo{font-size:22px;font-weight:800;letter-spacing:1px;padding:0}
+aside .logo .xgrad{color:#2ee8a8}
+aside .logo .ver{display:none}
 aside .tagline,aside nav,aside .sidefoot{display:none}
-.wrap{margin-top:52px;padding-bottom:92px}
-main{max-width:none;padding:14px 12px 8px}
-.topbar{flex-wrap:nowrap;gap:8px;margin-bottom:10px}
-.topbar h2{font-size:20px}
+#rxThemeBtn{background:#161b22;border:1px solid #232a35;color:#e6edf3;border-radius:10px;width:42px;height:42px;font-size:19px;padding:0;min-height:0;display:flex;align-items:center;justify-content:center;flex:none}
+.wrap{margin-top:56px;padding-bottom:96px}
+html body main{max-width:none;padding:16px 14px 8px}
+html body .topbar{background:#0d1117;border-bottom:0;padding:12px 0 8px;position:static}
+html body .topbar h2{font-size:30px;font-weight:800;letter-spacing:.2px}
 #topSub{display:none}
-#rxExport{display:none;margin-left:auto;background:none;border:1px solid var(--mint-line);color:var(--mint-txt);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;min-height:38px}
-#rxExport.show{display:inline-block}
-.card{border-radius:16px;padding:14px;margin-bottom:12px}
+.card{background:#161b22;border:1px solid #232a35;border-radius:16px;padding:16px;margin-bottom:14px}
 .row{flex-wrap:wrap;gap:9px}
 input,select,textarea{font-size:16px!important;min-height:46px;padding:10px 12px;border-radius:10px}
 input[type=checkbox]{min-height:0;width:20px;height:20px;vertical-align:-4px}
 button{min-height:46px;padding:10px 16px;border-radius:10px;font-size:15px}
 label{font-size:14px}
-.stats{flex-wrap:wrap;gap:9px}
-.stat{min-width:100px;flex:1}
-.stat b{font-size:22px}
 .grid2,.fgrid{grid-template-columns:1fr!important}
-#view-scanner #target,#view-vapt #vaptTarget{flex:1 1 100%;font-size:16px;padding:13px}
-#view-scanner #profile{display:none}
-#view-scanner #project,#view-vapt #vaptProject{flex:1 1 44%}
+#dashStats{display:none}
+#view-dashboard .grid2{display:none}
+#view-scanner #target{flex:1 1 100%;font-size:16px;padding:13px}
+#view-scanner #profile,#view-scanner #project,#view-scanner #newProject{display:none}
 #view-scanner .card>div.muted{display:none}
-#scanBtn,#vaptBtn,#rxHomeScan{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700;background:#2ee6a8;color:#06281d;border:0}
+#view-scanner .rxLimitsEdit{display:none}
+#view-scanner .rxLimitsEdit.open{display:flex}
+#view-scanner details{display:none}
+#view-scanner details.rxAdvOpen{display:block}
+#scanBtn,#vaptBtn,#rxHomeScan{flex:1 1 100%;padding:15px;font-size:16.5px;font-weight:700;background:#2ee8a8;color:#06281d;border:0;border-radius:14px}
 #rxHomeScan{width:100%;margin-top:2px}
 #stopBtn,#vaptStopBtn{flex:1 1 100%}
 .pbar{height:10px;border-radius:6px}
@@ -2102,37 +2105,36 @@ label{font-size:14px}
 #rxRing .rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #rxRing .rp{font-size:31px;font-weight:800;color:#fafafa}
 #rxRing .rph{font-size:10.5px;letter-spacing:1.4px;line-height:1.45;color:var(--mut);text-transform:uppercase;max-width:130px;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
-#rxArc{stroke:#2ee6a8}
+#rxArc{stroke:#2ee8a8}
 #resultsCard h3,.finding summary small,.finding .mono{overflow-wrap:anywhere;word-break:break-word}
-.finding{padding:15px;border-radius:14px}
+.finding{background:#161b22;border:1px solid #232a35;border-left-width:1px!important;border-radius:16px;padding:15px}
 .finding summary{line-height:1.55}
+.finding summary small,.finding summary .conf,.finding summary .tickchk{display:none}
+.finding .sev.crit{background:#ef4444;color:#fff;border-color:transparent}
+.finding .sev.high{background:#f97316;color:#fff;border-color:transparent}
+.finding .sev.med{background:#eab308;color:#1a1a00;border-color:transparent}
+.finding .sev.low{background:#3b82f6;color:#fff;border-color:transparent}
+.finding .sev.info{background:#3f3f46;color:#d4d4d8;border-color:transparent}
 .jrow{grid-template-columns:1fr;gap:4px;padding:11px 0}
 .sev{font-size:11.5px;padding:4px 10px}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 details>summary{padding:10px 0;font-size:14.5px}
 h3{font-size:16.5px}
-#rxTabs{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:#0d0d0f;border-top:1px solid var(--line);padding:6px 2px calc(8px + env(safe-area-inset-bottom))}
-#rxTabs button{flex:1;background:none;border:0;color:#6d6d75;font-size:10.5px;font-weight:600;min-height:52px;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:0}
-#rxTabs button .ic{font-size:20px;line-height:1}
-#rxTabs button.on{color:#2ee6a8}
-#rxMoreSheet{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.62);display:none}
-#rxMoreSheet.open{display:block}
-#rxMoreSheet .sheet{position:absolute;left:0;right:0;bottom:0;background:#101012;border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:6px 14px calc(16px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
-.rxGrp{font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--mut);text-transform:uppercase;padding:16px 4px 2px}
-#rxMoreSheet .sheet button.rxRow{display:flex;width:100%;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--txt);padding:14px 4px;text-align:left;border-radius:0;min-height:0}
-#rxMoreSheet .sheet button.rxRow:last-child{border-bottom:0}
-.rxRow .rxIc{font-size:20px;width:26px;text-align:center;flex:none}
-.rxRow .rxTx{flex:1;min-width:0}
-.rxRow .rxTt{display:block;font-size:16px;font-weight:600}
-.rxRow .rxSb{display:block;font-size:13px;color:var(--mut)}
-.rxRow .rxCh{color:var(--mut);font-size:16px;flex:none}
-.rxPills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
-.rxPill{border:1px solid var(--line);background:#141416;color:var(--txt);border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:600;min-height:38px}
-.rxPill.on{background:#2ee6a8;color:#06281d;border-color:transparent}
-.rxChips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
-.rxChip{border:1px solid var(--mint-line);background:var(--mint-soft);color:var(--mint-txt);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
-.rxVaptGo{width:100%;background:#141416;border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:13px 14px;text-align:left;font-size:14.5px;margin:0 0 4px}
-.rxVaptGo b{color:var(--mint-txt)}
+#view-vapt .pill{color:#8ff5cd!important;border-color:rgba(46,232,168,.38)!important;background:rgba(46,232,168,.12)!important}
+#view-history a{color:#2ee8a8}
+.rxGrp{font-size:11px;font-weight:700;letter-spacing:1.4px;color:#8b949e;text-transform:uppercase;padding:16px 4px 10px}
+.rxGrp:first-child{padding-top:2px}
+.rxPills{display:flex;gap:4px;margin:0 0 12px;background:#161b22;border:1px solid #232a35;border-radius:14px;padding:4px}
+.rxPill{flex:1;background:transparent;border:0;color:#8b949e;border-radius:10px;padding:11px 4px;font-size:14.5px;font-weight:700;min-height:44px}
+.rxPill.on{background:#2ee8a8;color:#06281d}
+.rxScanDesc{color:#8b949e;font-size:14.5px;line-height:1.5;margin:0 0 14px}
+#rxFeats{flex:1 1 100%;display:flex;flex-direction:column;gap:0}
+#rxFeats .rxFeat{flex:none}
+#rxFeats .rxFeat:last-child{margin-bottom:0}
+.rxFeat{display:flex;align-items:center;gap:12px;background:#161b22;border:1px solid #232a35;border-radius:12px;padding:13px 14px;margin-bottom:10px;font-size:15.5px;font-weight:600;flex:1 1 100%}
+.rxFeat .rxTick{width:24px;height:24px;border-radius:6px;background:#22c55e;color:#06281d;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex:none}
+.rxSumRow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#161b22;border:1px solid #232a35;border-radius:12px;padding:14px;margin-bottom:10px;font-size:15.5px;font-weight:600;flex:1 1 100%;text-align:left;color:#e6edf3}
+.rxSumRow .rxSumVal{color:#8b949e;font-weight:500;font-size:14px;text-align:right}
 .rxGaugeCard{display:flex;gap:16px;align-items:center}
 .rxGauge{position:relative;width:118px;height:118px;flex:none}
 .rxGauge svg{transform:rotate(-90deg)}
@@ -2140,54 +2142,96 @@ h3{font-size:16.5px}
 .rxGaugeNum{font-size:34px;font-weight:800;line-height:1}
 .rxGaugeBand{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut);margin-top:4px}
 .rxGaugeSide{flex:1;min-width:0}
-.rxGaugeLbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut)}
-.rxGaugeLine{font-size:19px;font-weight:800;margin:3px 0}
-.rxSevLbl{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);margin:2px 0 8px}
-.rxSevRow{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px}
-.rxSevNm{width:64px;color:var(--mut);flex:none}
-.rxSevBar{flex:1;height:8px;background:#1c1c1f;border-radius:5px;overflow:hidden}
-.rxSevFill{height:100%;border-radius:5px}
-.rxSevCnt{width:28px;text-align:right;font-weight:700;flex:none}
-#dashStats .stat:nth-child(3){display:none}
-#view-dashboard .grid2>div:last-child{display:none}
-#view-vapt .pill{color:#8ff5cd!important;border-color:var(--mint-line)!important;background:var(--mint-soft)!important}
-.vapt-includes{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 12px}
-.vapt-includes li{border:1px solid var(--mint-line);background:var(--mint-soft);color:#d7fff0;border-radius:999px;padding:6px 12px;font-size:13px}
-#view-history a{color:#2ee6a8}
-#rxSevFilter{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
-.rxPath{display:inline-block;font-family:Consolas,monospace;font-size:11.5px;color:#8ff5cd;background:var(--mint-soft);border:1px solid rgba(46,230,168,.30);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle}
-.rxDesc{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:6px}
+.rxGaugeLbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#8b949e}
+.rxGaugeLine{font-size:21px;font-weight:800;margin:3px 0}
+.rxSevHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.rxSevLbl{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#8b949e}
+.rxSevTot{font-size:13.5px;color:#8b949e}
+.rxSegBar{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin:12px 0 10px}
+.rxSegBar span{display:block;height:100%;border-radius:3px}
+.rxSegRow{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:#8b949e}
+.rxSegRow b{color:#e6edf3}
+.rxRecentHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.rxDone{background:#14532d;color:#4ade80;border-radius:999px;padding:4px 12px;font-size:12.5px;font-weight:700;flex:none}
+.rxRecentTgt{color:#2ee8a8;font-size:16px;font-weight:700;overflow-wrap:anywhere;word-break:break-word}
+.rxRecentSub{color:#8b949e;font-size:13.5px;margin-top:4px}
+.rxFindHead{color:#8b949e;font-size:14.5px;margin:0 0 12px;overflow-wrap:anywhere;word-break:break-word}
+.rxFindHead b{color:#e6edf3}
+.rxFiltPills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.rxFiltPill{background:#161b22;border:1px solid #232a35;color:#8b949e;border-radius:999px;padding:9px 15px;font-size:13.5px;font-weight:700;min-height:38px}
+.rxFiltPill.on{background:#1c4a32;color:#2ee8a8;border-color:#2ee8a8}
+.rxPath{float:right;font-family:Consolas,monospace;font-size:12px;color:#8b949e;margin-top:3px}
+.rxDesc{color:#8b949e;font-size:13.5px;line-height:1.5;margin-top:6px}
+#view-findings #resultsCard>:not(#rxFindHead):not(#rxFiltPills):not(#findings){display:none}
+#rxFindActions{display:flex;gap:12px;margin:16px 0 4px}
+#rxFindActions button{flex:1;background:#161b22;border:1px solid #232a35;color:#e6edf3;border-radius:12px;padding:14px;font-size:15px;font-weight:700}
+.rxToolGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px}
+.rxToolCard{background:#161b22;border:1px solid #232a35;border-radius:16px;padding:16px;text-align:left;min-height:0}
+.rxToolIc{color:#2ee8a8;font-size:24px;line-height:1}
+.rxToolTt{display:block;font-size:16.5px;font-weight:700;color:#fff;margin-top:10px}
+.rxToolSb{display:block;font-size:13px;color:#8b949e;margin-top:4px;line-height:1.45}
+.rxSetRow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:#161b22;border:1px solid #232a35;border-radius:12px;padding:15px;font-size:15.5px;font-weight:600;text-align:left;margin-top:8px;color:#e6edf3}
+.rxSetRow span:last-child{color:#8b949e;font-weight:500;flex:none}
+#rxTabs{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:#0d1117;border-top:1px solid #232a35;padding:8px 4px calc(10px + env(safe-area-inset-bottom))}
+#rxTabs button{flex:1;background:none;border:0;color:#8b949e;font-size:11px;font-weight:600;min-height:52px;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:0}
+#rxTabs button .ic{font-size:22px;line-height:1}
+#rxTabs button.on{color:#2ee8a8}
+html.rx-light{--txt:#0d1117;--mut:#5a6472;--line:#dde3e8;--panel:#ffffff;--panel2:#eef1f4}
+html.rx-light body{background:#f2f4f7}
+html.rx-light aside,html.rx-light .topbar,html.rx-light #rxTabs{background:#ffffff;border-color:#dde3e8}
+html.rx-light .card,html.rx-light .rxPills,html.rx-light .rxFeat,html.rx-light .rxSumRow,html.rx-light .rxFiltPill,html.rx-light .finding,html.rx-light .rxToolCard,html.rx-light .rxSetRow,html.rx-light #rxFindActions button,html.rx-light #rxThemeBtn{background:#ffffff;border-color:#dde3e8}
+html.rx-light #rxTabs button{color:#5a6472}
+html.rx-light #rxTabs button.on{color:#0a9d6b}
+html.rx-light .rxPill{color:#5a6472}
+html.rx-light .rxPill.on{background:#2ee8a8;color:#06281d}
 </style>
 """
 
-MOBILE_BODY = r"""
-<div id="rxMoreSheet" onclick="if(event.target===this)rxMore(false)">
-  <div class="sheet">
-    <div class="rxGrp">Assess</div>
-    <button class="rxRow" onclick="rxGo('vapt')"><span class="rxIc">&#9889;</span><span class="rxTx"><span class="rxTt">VAPT</span><span class="rxSb">Full assessment with proof and PDF</span></span><span class="rxCh">&#8250;</span></button>
-    <button class="rxRow" onclick="rxGo('surface')"><span class="rxIc">&#9673;</span><span class="rxTx"><span class="rxTt">Attack surface</span><span class="rxSb">Assets, DNS and email security</span></span><span class="rxCh">&#8250;</span></button>
-    <button class="rxRow" onclick="rxGo('a403')"><span class="rxIc">&#9940;</span><span class="rxTx"><span class="rxTt">403 assessment</span><span class="rxSb">Access-control diagnostics</span></span><span class="rxCh">&#8250;</span></button>
-    <button class="rxRow" onclick="rxGo('repeater')"><span class="rxIc">&#8635;</span><span class="rxTx"><span class="rxTt">HTTP repeater</span><span class="rxSb">Replay and tweak requests</span></span><span class="rxCh">&#8250;</span></button>
-    <div class="rxGrp">Automate</div>
-    <button class="rxRow" onclick="rxGo('automation')"><span class="rxIc">&#128337;</span><span class="rxTx"><span class="rxTt">Schedules</span><span class="rxSb">Recurring scans</span></span><span class="rxCh">&#8250;</span></button>
-    <button class="rxRow" onclick="rxGoCustom()"><span class="rxIc">&#9763;</span><span class="rxTx"><span class="rxTt">Custom rules</span><span class="rxSb">Regex rule builder</span></span><span class="rxCh">&#8250;</span></button>
-    <div class="rxGrp">App</div>
-    <button class="rxRow" onclick="rxGo('settings')"><span class="rxIc">&#9881;</span><span class="rxTx"><span class="rxTt">Settings</span><span class="rxSb">Webhooks, API token, branding</span></span><span class="rxCh">&#8250;</span></button>
+MOBILE_BODY = r"""<section class="view" id="view-rxtools">
+  <div class="rxGrp">Assess</div>
+  <div class="rxToolGrid">
+    <button class="rxToolCard" onclick="rxGo('vapt')"><span class="rxToolIc">&#9889;</span><span class="rxToolTt">VAPT</span><span class="rxToolSb">Assessment with proof and PDF</span></button>
+    <button class="rxToolCard" onclick="rxGo('surface')"><span class="rxToolIc">&#9673;</span><span class="rxToolTt">Attack surface</span><span class="rxToolSb">Assets, DNS and email</span></button>
+    <button class="rxToolCard" onclick="rxGo('a403')"><span class="rxToolIc">&#9940;</span><span class="rxToolTt">403 assessment</span><span class="rxToolSb">Access-control checks</span></button>
+    <button class="rxToolCard" onclick="rxGo('repeater')"><span class="rxToolIc">&#8635;</span><span class="rxToolTt">HTTP repeater</span><span class="rxToolSb">Replay and tweak requests</span></button>
   </div>
-</div>
+  <div class="rxGrp">Automate</div>
+  <div class="rxToolGrid">
+    <button class="rxToolCard" onclick="rxGo('automation')"><span class="rxToolIc">&#128337;</span><span class="rxToolTt">Schedules</span><span class="rxToolSb">Recurring scans</span></button>
+    <button class="rxToolCard" onclick="rxGoCustom()"><span class="rxToolIc">&#9763;</span><span class="rxToolTt">Custom rules</span><span class="rxToolSb">Regex rule builder</span></button>
+  </div>
+  <button class="rxSetRow" onclick="rxGo('settings')"><span>Webhooks, API token, branding</span><span>Settings</span></button>
+</section>
 <nav id="rxTabs">
-  <button data-rx="dashboard" class="on" onclick="rxGo('dashboard')"><span class="ic">&#8962;</span>Home</button>
+  <button data-rx="dashboard" class="on" onclick="rxGo('dashboard')"><span class="ic">&#8962;</span>Overview</button>
   <button data-rx="scanner" onclick="rxGo('scanner')"><span class="ic">&#8982;</span>Scan</button>
   <button data-rx="findings" onclick="rxGo('findings')"><span class="ic">&#9888;</span>Findings</button>
-  <button data-rx="history" onclick="rxGo('history')"><span class="ic">&#128340;</span>History</button>
-  <button data-rx="more" onclick="rxMore(true)"><span class="ic">&#9776;</span>More</button>
+  <button data-rx="rxtools" onclick="rxGo('rxtools')"><span class="ic">&#9638;</span>Tools</button>
 </nav>
 <script>
 (function(){
-  var MAIN={dashboard:1,scanner:1,findings:1,history:1};
-  window.rxMore=function(open){document.getElementById('rxMoreSheet').classList.toggle('open',!!open);};
-  window.rxGo=function(v){rxMore(false);show(v);rxSync(v);window.scrollTo(0,0);
-    if(window._lastRx!==v){try{history.pushState({rx:v},'', '#'+v);}catch(e){}window._lastRx=v;}};
+  var MAIN={dashboard:1,scanner:1,findings:1,rxtools:1};
+  var TOOLVIEWS={vapt:1,surface:1,a403:1,repeater:1,automation:1,settings:1,history:1};
+  var TITLES_RX={dashboard:'Overview',rxtools:'Tools'};
+  var E=(typeof esc!=='undefined'?esc:function(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;});
+  var toolsEl=document.getElementById('view-rxtools');
+  var mainEl=document.querySelector('main');
+  if(toolsEl&&mainEl) mainEl.appendChild(toolsEl);
+  function rxApplyTheme(){
+    var light=localStorage.getItem('rxTheme')==='light';
+    document.documentElement.classList.toggle('rx-light',light);
+    var b=document.getElementById('rxThemeBtn');
+    if(b) b.textContent=light?'\u263E':'\u2600';
+  }
+  var asideEl=document.querySelector('aside');
+  if(asideEl&&!document.getElementById('rxThemeBtn')){
+    var tb=document.createElement('button'); tb.id='rxThemeBtn'; tb.type='button'; tb.title='Theme';
+    tb.onclick=function(){try{localStorage.setItem('rxTheme',document.documentElement.classList.contains('rx-light')?'dark':'light');}catch(e){}rxApplyTheme();};
+    asideEl.appendChild(tb);
+  }
+  try{rxApplyTheme();}catch(e){}
+  window.rxGo=function(v){show(v);rxSync(v);window.scrollTo(0,0);
+    if(window._lastRx!==v){try{history.pushState({rx:v},'','#'+v);}catch(e){}window._lastRx=v;}};
   window.rxGoCustom=function(){rxGo('automation');setTimeout(function(){var el=document.getElementById('ccList');if(el)el.scrollIntoView();},500);};
   window.addEventListener('popstate',function(e){
     var v=(e.state&&e.state.rx)||''; if(!v){show('dashboard');rxSync('dashboard');window._lastRx='dashboard';return;}
@@ -2195,71 +2239,103 @@ MOBILE_BODY = r"""
   function rxSync(v){
     window._rxView=v;
     document.querySelectorAll('#rxTabs button').forEach(function(b){
-      b.classList.toggle('on', b.dataset.rx===v || (b.dataset.rx==='more' && !MAIN[v]));
+      b.classList.toggle('on', b.dataset.rx===v || (b.dataset.rx==='rxtools' && !!TOOLVIEWS[v]));
     });
     rxTopbar();
   }
   function rxTopbar(){
     var v=window._rxView||'dashboard';
     var t=document.getElementById('viewTitle');
-    if(t) t.textContent=(v==='scanner')?'New scan':(((typeof TITLES!=='undefined'?TITLES:{})[v])||v);
-    var ex=document.getElementById('rxExport');
-    if(ex){
-      var rc=document.getElementById('resultsCard');
-      ex.classList.toggle('show', v==='findings' && rc && !rc.classList.contains('hidden'));
-    }
+    if(t) t.textContent=(v==='scanner')?'New scan':(TITLES_RX[v]||(((typeof TITLES!=='undefined'?TITLES:{})[v])||v));
   }
   var _show=window.show;
   window.show=function(v){_show(v);rxSync(v);};
-  (function(){
-    var tb=document.querySelector('.topbar'); if(!tb) return;
-    var b=document.createElement('button'); b.id='rxExport'; b.className='rxExport'; b.textContent='Export';
-    b.onclick=function(){var a=document.getElementById('dlPdf'); if(a) a.click();};
-    tb.appendChild(b);
-  })();
-  var SHORT={full:'Full',recon:'Recon only',quick:'Quick',api:'API',passive:'Passive'};
-  var CHIPS={full:['External recon','Proof before reporting','PDF report'],recon:['External recon','PDF report'],quick:['Proof before reporting','PDF report'],api:['Proof before reporting','PDF report'],passive:['Proof before reporting','PDF report']};
+  var MODES=[
+    {label:'Standard',value:'quick',desc:'Quick crawl of the target, with proof before reporting.',feats:['Proof before reporting','PDF report'],btn:'Start scan'},
+    {label:'Full + recon',value:'full',desc:'Crawl plus external recon, with proof before reporting.',feats:['External recon','Proof before reporting','PDF report'],btn:'Start full scan'}
+  ];
   function rxScanPills(){
     var sel=document.getElementById('profile'); if(!sel||document.getElementById('rxPills')) return;
     var card=sel.closest('.card'); if(!card) return;
     var row=sel.closest('.row'); if(!row) return;
     var pills=document.createElement('div'); pills.id='rxPills'; pills.className='rxPills';
-    Array.prototype.forEach.call(sel.options,function(o){
-      var p=document.createElement('button'); p.type='button'; p.className='rxPill'; p.dataset.p=o.value;
-      p.textContent=SHORT[o.value]||o.textContent;
-      p.onclick=function(){sel.value=o.value; rxSyncPills();};
+    MODES.forEach(function(m){
+      var p=document.createElement('button'); p.type='button'; p.className='rxPill'; p.dataset.p=m.value; p.textContent=m.label;
+      p.onclick=function(){sel.value=m.value; rxSyncPills();};
       pills.appendChild(p);
     });
-    var chips=document.createElement('div'); chips.id='rxChips'; chips.className='rxChips';
-    var go=document.createElement('button'); go.type='button'; go.className='rxVaptGo';
-    go.innerHTML='Need a full assessment with a PDF report? <b>Open VAPT &#8250;</b>';
-    go.onclick=function(){rxGo('vapt');};
-    card.insertBefore(pills,row); card.insertBefore(chips,row); card.insertBefore(go,row);
+    var vp=document.createElement('button'); vp.type='button'; vp.className='rxPill'; vp.textContent='VAPT';
+    vp.onclick=function(){rxGo('vapt');};
+    pills.appendChild(vp);
+    var desc=document.createElement('div'); desc.id='rxScanDesc'; desc.className='rxScanDesc';
+    var feats=document.createElement('div'); feats.id='rxFeats';
+    var tgt=document.getElementById('target'); if(tgt) tgt.placeholder='https://example.com or http://127.0.0.1:8080';
+    var scanBtn=document.getElementById('scanBtn');
+    var limRow=document.createElement('button'); limRow.type='button'; limRow.id='rxLimitsRow'; limRow.className='rxSumRow';
+    limRow.innerHTML='<span>Crawl limits</span><span class="rxSumVal" id="rxLimitsVal"></span>';
+    var advRow=document.createElement('button'); advRow.type='button'; advRow.id='rxAdvRow'; advRow.className='rxSumRow';
+    advRow.innerHTML='<span>Advanced</span><span class="rxSumVal">Proxy, IDOR, auth, API spec</span>';
+    card.insertBefore(pills,row); card.insertBefore(desc,row);
+    if(scanBtn){row.insertBefore(feats,scanBtn); row.insertBefore(limRow,scanBtn); row.insertBefore(advRow,scanBtn);}
+    else{card.appendChild(feats); card.appendChild(limRow); card.appendChild(advRow);}
+    var mp=document.getElementById('maxPages');
+    var limEdit=mp?mp.closest('.row'):null;
+    if(limEdit) limEdit.classList.add('rxLimitsEdit');
+    function rxLimitsText(){
+      var gv=function(id,d){var e=document.getElementById(id); return e?e.value:d;};
+      var v=document.getElementById('rxLimitsVal');
+      if(v) v.textContent=gv('maxPages','60')+' pages \u00B7 depth '+gv('maxDepth','3')+' \u00B7 '+gv('threads','6')+' threads';
+    }
+    limRow.onclick=function(){if(limEdit) limEdit.classList.toggle('open');};
+    ['maxPages','maxDepth','threads'].forEach(function(id){var e=document.getElementById(id); if(e) e.addEventListener('input',rxLimitsText);});
+    rxLimitsText();
+    var det=card.querySelector('details');
+    advRow.onclick=function(){if(!det) return; det.classList.toggle('rxAdvOpen'); if(det.classList.contains('rxAdvOpen')) det.scrollIntoView();};
     sel.addEventListener('change',rxSyncPills);
     rxSyncPills();
   }
   function rxSyncPills(){
     var sel=document.getElementById('profile'); if(!sel) return;
-    document.querySelectorAll('#rxPills .rxPill').forEach(function(p){p.classList.toggle('on',p.dataset.p===sel.value);});
-    var chips=document.getElementById('rxChips'); if(!chips) return;
-    var list=CHIPS[sel.value]||CHIPS.full;
-    chips.innerHTML=list.map(function(c){return '<span class="rxChip">'+c+'</span>';}).join('');
+    var mode=null; MODES.forEach(function(m){if(m.value===sel.value) mode=m;});
+    document.querySelectorAll('#rxPills .rxPill').forEach(function(p){p.classList.toggle('on',!!mode&&p.dataset.p===sel.value);});
+    var desc=document.getElementById('rxScanDesc');
+    if(desc) desc.textContent=mode?mode.desc:'Pick a scan mode.';
+    var feats=document.getElementById('rxFeats');
+    if(feats) feats.innerHTML=mode?mode.feats.map(function(f){return '<div class="rxFeat"><span class="rxTick">\u2713</span><span>'+f+'</span></div>';}).join(''):'';
+    var btn=document.getElementById('scanBtn');
+    if(btn) btn.textContent=mode?mode.btn:'Start scan';
   }
   var SEVORDER=['Critical','High','Medium','Low','Info'];
-  var SEVCOL={Critical:'var(--crit)',High:'var(--high)',Medium:'var(--med)',Low:'var(--low)',Info:'var(--info)'};
+  var SEVCOL={Critical:'#ef4444',High:'#f97316',Medium:'#eab308',Low:'#3b82f6',Info:'#6b7280'};
   function rxBand(r){return r>=70?'Critical':r>=45?'High':r>=25?'Medium':'Low';}
   function rxHomeBuild(){
     var view=document.getElementById('view-dashboard'); if(!view||document.getElementById('rxGaugeCard')) return;
     var stats=document.getElementById('dashStats'); if(!stats) return;
     var g=document.createElement('div'); g.id='rxGaugeCard'; g.className='card rxGaugeCard';
-    g.innerHTML='<div class="rxGauge"><svg width="118" height="118" viewBox="0 0 118 118"><circle cx="59" cy="59" r="52" fill="none" stroke="#1c1c1f" stroke-width="11"/><circle id="rxGaugeArc" cx="59" cy="59" r="52" fill="none" stroke="#2ee6a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327"/></svg><div class="rxGaugeC"><div class="rxGaugeNum" id="rxGaugeNum">\u2014</div><div class="rxGaugeBand" id="rxGaugeBand">no scans</div></div></div><div class="rxGaugeSide"><div class="rxGaugeLbl">Latest risk</div><div class="rxGaugeLine" id="rxGaugeLine">\u2014 / 100</div><div class="muted" id="rxGaugeSub">No scans yet.</div></div>';
+    g.innerHTML='<div class="rxGauge"><svg width="118" height="118" viewBox="0 0 118 118"><circle cx="59" cy="59" r="52" fill="none" stroke="#1c1c1f" stroke-width="11"/><circle id="rxGaugeArc" cx="59" cy="59" r="52" fill="none" stroke="#2ee8a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327"/></svg><div class="rxGaugeC"><div class="rxGaugeNum" id="rxGaugeNum">\u2014</div><div class="rxGaugeBand" id="rxGaugeBand">no scans</div></div></div><div class="rxGaugeSide"><div class="rxGaugeLbl">Latest risk</div><div class="rxGaugeLine" id="rxGaugeLine">\u2014 / 100</div><div class="muted" id="rxGaugeSub">No scans yet.</div></div>';
     view.insertBefore(g,stats);
     var sev=document.createElement('div'); sev.id='rxSevCard'; sev.className='card';
-    sev.innerHTML='<div class="rxSevLbl">Findings by severity</div><div id="rxSevRows" class="muted">No scans yet.</div>';
+    sev.innerHTML='<div class="rxSevHead"><span class="rxSevLbl">Findings by severity</span><span class="rxSevTot" id="rxSevTot"></span></div><div class="rxSegBar" id="rxSegBar"></div><div class="rxSegRow" id="rxSegRow"><span class="muted">No scans yet.</span></div>';
     view.insertBefore(sev,stats.nextSibling);
+    var rec=document.createElement('div'); rec.id='rxRecentCard'; rec.className='card';
+    rec.innerHTML='<div class="rxRecentHead"><span class="rxSevLbl">Recent scans</span><span class="rxDone" id="rxRecentBadge" style="display:none">Done</span></div><div id="rxRecentBody"><span class="muted">No scans yet.</span></div>';
+    view.insertBefore(rec,sev.nextSibling);
     var btn=document.createElement('button'); btn.id='rxHomeScan'; btn.type='button';
-    btn.innerHTML='&#9654; New scan'; btn.onclick=function(){rxGo('scanner');};
+    btn.textContent='New scan'; btn.onclick=function(){rxGo('scanner');};
     view.appendChild(btn);
+  }
+  var _rxSevCache=null;
+  function rxSevCountsFor(id){
+    if(_rxSevCache&&_rxSevCache.id===id) return Promise.resolve(_rxSevCache.counts);
+    return fetch('/api/scans/'+id).then(function(r){return r.json();}).then(function(d){
+      var counts=(d.result&&d.result.counts)||null;
+      if(!counts){
+        var fs=(d.result&&d.result.findings)||d.findings||[];
+        counts={}; fs.forEach(function(f){counts[f.severity]=(counts[f.severity]||0)+1;});
+      }
+      _rxSevCache={id:id,counts:counts};
+      return counts;
+    });
   }
   function rxHomeUpdate(){
     var stats=document.getElementById('dashStats'); if(!stats) return;
@@ -2271,49 +2347,47 @@ MOBILE_BODY = r"""
     if(!num) return;
     if(isNaN(risk)){num.textContent='\u2014';band.textContent='no scans';line.textContent='\u2014 / 100';if(sub)sub.textContent='No scans yet.';return;}
     num.textContent=risk; var b=rxBand(risk); band.textContent=b;
-    line.textContent=b+' - '+risk+' / 100';
+    line.textContent=b+' \u00B7 '+risk+' / 100';
     if(arc) arc.style.strokeDashoffset=327-(327*risk/100);
-    rxSevCounts().then(function(c){
+    fetch('/api/scans').then(function(r){return r.json();}).then(function(j){
+      var scans=j.scans||[];
+      var done=scans.filter(function(s){return s.status==='done';});
+      if(sub) sub.textContent=scans.length+' scan'+(scans.length===1?'':'s')+' \u00B7 '+done.length+' completed';
+      var latest=done[0];
+      var body=document.getElementById('rxRecentBody'); var badge=document.getElementById('rxRecentBadge');
+      if(latest&&body){
+        if(badge) badge.style.display='inline-block';
+        var st=(latest.started||'').slice(0,16);
+        body.innerHTML='<div class="rxRecentTgt" onclick="rxGo(\'history\')">'+E(latest.target)+'</div><div class="rxRecentSub">'+E(st)+' \u00B7 Risk '+(latest.risk==null?'\u2014':latest.risk)+'</div>';
+      }
+      if(!latest) return null;
+      return rxSevCountsFor(latest.id);
+    }).then(function(c){
       if(!c) return;
-      var parts=SEVORDER.map(function(s){return c[s]?c[s]+' '+s.toLowerCase():'';}).filter(Boolean);
-      if(sub) sub.textContent=parts.length?parts.join(', ')+' from your latest scan':'No findings in your latest scan.';
-      var rows=document.getElementById('rxSevRows'); if(!rows) return;
-      var max=Math.max.apply(null,SEVORDER.map(function(s){return c[s]||0;}).concat([1]));
-      rows.classList.remove('muted');
-      rows.innerHTML=SEVORDER.map(function(s){
-        var n=c[s]||0;
-        return '<div class="rxSevRow"><span class="rxSevNm">'+s+'</span><span class="rxSevBar"><span class="rxSevFill" style="width:'+(n/max*100)+'%;background:'+SEVCOL[s]+'"></span></span><span class="rxSevCnt">'+n+'</span></div>';
-      }).join('');
+      var total=SEVORDER.reduce(function(a,s){return a+(c[s]||0);},0);
+      var tot=document.getElementById('rxSevTot'); if(tot) tot.textContent=total+' total';
+      var bar=document.getElementById('rxSegBar');
+      if(bar) bar.innerHTML=SEVORDER.map(function(s){var n=c[s]||0; return n?'<span style="flex:'+n+';background:'+SEVCOL[s]+'"></span>':'';}).join('')||'<span style="flex:1;background:#232a35"></span>';
+      var rowEl=document.getElementById('rxSegRow');
+      if(rowEl) rowEl.innerHTML=SEVORDER.map(function(s){return '<span>'+s+' <b>'+(c[s]||0)+'</b></span>';}).join('');
     }).catch(function(){});
-  }
-  var _rxSevCache=null;
-  function rxSevCounts(){
-    return fetch('/api/scans').then(function(r){return r.json();}).then(function(j){
-      var done=(j.scans||[]).filter(function(s){return s.status==='done';});
-      if(!done.length) return null;
-      var id=done[0].id;
-      if(_rxSevCache&&_rxSevCache.id===id) return _rxSevCache.counts;
-      return fetch('/api/scans/'+id).then(function(r){return r.json();}).then(function(d){
-        var counts=(d.result&&d.result.counts)||null;
-        if(!counts){
-          var fs=(d.result&&d.result.findings)||d.findings||[];
-          counts={}; fs.forEach(function(f){counts[f.severity]=(counts[f.severity]||0)+1;});
-        }
-        _rxSevCache={id:id,counts:counts};
-        return counts;
-      });
-    });
   }
   function rxFindingsChrome(){
     var rc=document.getElementById('resultsCard'); if(!rc) return;
     var f=document.getElementById('findings'); if(!f) return;
-    var old=document.getElementById('rxSevFilter'); if(old) old.remove();
+    var old=document.getElementById('rxFiltPills'); if(old) old.remove();
+    var head=document.getElementById('rxFindHead'); if(head) head.remove();
     var cur=window._curFindings||[];
     var counts={}; cur.forEach(function(x){counts[x.severity]=(counts[x.severity]||0)+1;});
-    var bar=document.createElement('div'); bar.id='rxSevFilter';
+    if(window._rxLastTarget){
+      var h=document.createElement('div'); h.id='rxFindHead'; h.className='rxFindHead';
+      h.innerHTML='<b>'+E(window._rxLastTarget)+'</b>'+(window._rxLastRisk==null?'':' \u00B7 Risk '+window._rxLastRisk+'/100');
+      f.parentNode.insertBefore(h,f);
+    }
+    var bar=document.createElement('div'); bar.id='rxFiltPills'; bar.className='rxFiltPills';
     var mk=function(name,n){
       var p=document.createElement('button'); p.type='button';
-      p.className='rxPill'+(((name==='All'&&!window._rxSevFilter)||window._rxSevFilter===name)?' on':'');
+      p.className='rxFiltPill'+(((name==='All'&&!window._rxSevFilter)||window._rxSevFilter===name)?' on':'');
       p.textContent=name+' '+n;
       p.onclick=function(){window._rxSevFilter=(name==='All'?null:name); rxFindingsChrome(); rxEnhanceFindings();};
       return p;
@@ -2321,7 +2395,15 @@ MOBILE_BODY = r"""
     bar.appendChild(mk('All',cur.length));
     SEVORDER.forEach(function(s){bar.appendChild(mk(s,counts[s]||0));});
     f.parentNode.insertBefore(bar,f);
-    rxTopbar();
+    var acts=document.getElementById('rxFindActions');
+    if(!acts){
+      acts=document.createElement('div'); acts.id='rxFindActions';
+      var rb=document.createElement('button'); rb.type='button'; rb.textContent='Retest all'; rb.onclick=function(){retestAll();};
+      var eb=document.createElement('button'); eb.type='button'; eb.textContent='Export'; eb.onclick=function(){var a=document.getElementById('dlPdf'); if(a) a.click();};
+      acts.appendChild(rb); acts.appendChild(eb);
+      var v=document.getElementById('view-findings'); if(v) v.appendChild(acts);
+    }
+    acts.style.display=rc.classList.contains('hidden')?'none':'flex';
   }
   function rxEnhanceFindings(){
     var cards=document.querySelectorAll('#findings details.finding');
@@ -2335,7 +2417,9 @@ MOBILE_BODY = r"""
         var sm=sum.querySelector('small'); var path='/';
         if(sm){try{path=new URL(sm.textContent.trim()).pathname||'/';}catch(e){path='/';}}
         var chip=document.createElement('span'); chip.className='rxPath'; chip.textContent=path;
-        sum.appendChild(chip); d.dataset.rxPath='1';
+        var bt=sum.querySelector('b');
+        sum.insertBefore(chip,bt?bt.nextSibling:null);
+        d.dataset.rxPath='1';
       }
       if(!d.dataset.rxDesc && d.dataset.fid && byFp[d.dataset.fid]){
         var x=byFp[d.dataset.fid]; var txt=x.about||x.detail||'';
@@ -2357,7 +2441,10 @@ MOBILE_BODY = r"""
   }
   if(window.renderResults){
     var _rr=window.renderResults;
-    window.renderResults=function(){var r=_rr.apply(this,arguments); try{rxFindingsChrome();}catch(e){} return r;};
+    window.renderResults=function(target,findings,counts,result){
+      window._rxLastTarget=target;
+      window._rxLastRisk=(result&&result.risk_score!=null)?result.risk_score:null;
+      var r=_rr.apply(this,arguments); try{rxFindingsChrome();}catch(e){} return r;};
   }
   if(window.renderFindings){
     var _rf=window.renderFindings;
@@ -2367,7 +2454,7 @@ MOBILE_BODY = r"""
   if(live){
     var wrap=document.createElement('div'); wrap.id='rxRing';
     wrap.innerHTML='<svg width="168" height="168"><circle cx="84" cy="84" r="74" fill="none" stroke="#1c1c1f" stroke-width="11"/>'
-      +'<circle id="rxArc" cx="84" cy="84" r="74" fill="none" stroke="#2ee6a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/></svg>'
+      +'<circle id="rxArc" cx="84" cy="84" r="74" fill="none" stroke="#2ee8a8" stroke-width="11" stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/></svg>'
       +'<div class="rc"><div class="rp" id="rxPct">0%</div><div class="rph" id="rxPhase">starting</div></div>';
     live.insertBefore(wrap, live.firstChild);
     var C=465;
