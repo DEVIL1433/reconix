@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Engine" src="https://img.shields.io/badge/engine-4.2-blue">
+  <img alt="Engine" src="https://img.shields.io/badge/engine-4.3-blue">
   <img alt="Android" src="https://img.shields.io/badge/Android-v1.14-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Dependencies" src="https://img.shields.io/badge/dependencies-zero-brightgreen">

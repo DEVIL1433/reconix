@@ -143,6 +143,11 @@ ATTACKS = {
         "Change account settings, email or password from a malicious page",
         "Make purchases or transfers the user never intended",
     ],
+    "mass assignment": [
+        "Turn a normal account into an admin by adding a role field to a request",
+        "Change prices, discounts or balances by adding fields the form never showed",
+        "Overwrite fields the app meant to control itself (owner, status, flags)",
+    ],
     "idor": [
         "View other users' data by changing a number in the address bar",
         "Change or delete other users' records the same way",
@@ -357,6 +362,7 @@ ATTACKS_BY_CWE = {
     "CWE-444": "smuggling", "CWE-16": "header",
     "CWE-1321": "prototype pollution", "CWE-502": "deserialization",
     "CWE-829": "subresource integrity", "CWE-643": "xpath injection",
+    "CWE-915": "mass assignment",
 }
 
 
@@ -463,7 +469,7 @@ def _wrap(text, width=96):
 
 def to_pdf(result):
     """Minimal valid PDF: summary page + one block per finding."""
-    lines = ["Reconix 4.2 - Vulnerability Report", ""]
+    lines = ["Reconix 4.3 - Vulnerability Report", ""]
     lines += _wrap(executive_summary(result))
     if result.get("ai_narrative"):
         lines += ["", "AI narrative (local model — written from proven "

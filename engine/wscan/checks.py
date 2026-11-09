@@ -632,6 +632,28 @@ def cors_check(ctx, url):
               proof="ACAO: * with ACAC: true", resp=r, cwe="CWE-942")
 
 
+# Cloud metadata endpoints, one per provider. The in-band proof is the
+# fetched metadata echoed back by the app: each entry's regex matches a
+# field that only that provider's metadata service returns, so a match
+# proves the server reached that service (not just any 169.254 host).
+# AWS was the only provider covered before 4.3; IBM and OpenStack follow
+# the same pattern ZAP's active rules added in March 2026 (v80).
+# GCP/Azure are deliberately absent: their metadata services require a
+# special request header (Metadata-Flavor / Metadata) that an SSRF probe
+# cannot make the server send, so no in-band proof is possible there.
+CLOUD_METADATA_PROBES = [
+    ("AWS EC2",
+     "http://169.254.169.254/latest/meta-data/",
+     r"(ami-id|instance-id|iam|security-credentials)"),
+    ("IBM Cloud",
+     "http://169.254.169.254/metadata/v1/instance",
+     r'"(crn|network_interfaces)"\s*:'),
+    ("OpenStack",
+     "http://169.254.169.254/openstack/latest/meta_data.json",
+     r'"availability_zone"\s*:'),
+]
+
+
 # ------------------------------------------------------------------ SSRF (OOB)
 
 def ssrf_url(ctx, url):
@@ -647,16 +669,18 @@ def ssrf_url(ctx, url):
         ctx.oob_pending.append({
             "token": token, "kind": "SSRF", "url": url, "param": name, "resp": r,
             "payload": probe_url})
-        # direct metadata probe (in-band proof if the app echoes the fetch)
-        meta = client.fetch(with_param(
-            url, name, "http://169.254.169.254/latest/meta-data/"))
-        if meta.status and re.search(r"(ami-id|instance-id|iam|security-credentials)",
-                                     meta.body or ""):
-            F.add("Critical", "Server-Side Request Forgery (cloud metadata)", url,
-                  f"Parameter '{name}' made the server fetch the EC2 metadata "
-                  f"service and the response was returned.",
-                  proof=meta.body[:200], param=name, resp=meta, cwe="CWE-918",
-                  payload="http://169.254.169.254/latest/meta-data/")
+        # direct metadata probes (in-band proof if the app echoes the fetch)
+        for provider, meta_url, marker in CLOUD_METADATA_PROBES:
+            meta = client.fetch(with_param(url, name, meta_url))
+            if meta.status and re.search(marker, meta.body or ""):
+                F.add("Critical",
+                      "Server-Side Request Forgery (cloud metadata)", url,
+                      f"Parameter '{name}' made the server fetch the "
+                      f"{provider} metadata service and the response was "
+                      f"returned.",
+                      proof=meta.body[:200], param=name, resp=meta,
+                      cwe="CWE-918", payload=meta_url,
+                      dedupe_key=("ssrf-cloudmeta", provider, url, name))
 
 
 def finalize_oob(ctx):

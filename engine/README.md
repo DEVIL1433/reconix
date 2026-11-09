@@ -1,3 +1,19 @@
+**New in 4.3 (weekly improvement, 2026-11-09):** two genuinely missing
+checks, both proof-guarded. **Mass assignment (BOPLA, CWE-915)** — the
+API fuzzer now tries to smuggle undeclared fields (`role`, `is_admin`,
+`price`) into JSON write bodies, and only reports when a read-back
+after the write returns the injected value — a write response that
+merely echoes the request is not proof, so echo-only endpoints never
+flag; fields already in the endpoint's schema are never tried.
+**Cloud-metadata SSRF: IBM + OpenStack** — the metadata probe that
+only covered AWS now also tries IBM Cloud
+(`169.254.169.254/metadata/v1/instance`, proved by the `crn` /
+`network_interfaces` fields only IBM returns) and OpenStack
+(`openstack/latest/meta_data.json`, proved by `availability_zone`).
+GCP/Azure are deliberately not probed: their metadata services need a
+special request header no SSRF probe can make the server send.
+Tests: 8 new, full suite green (see below).
+
 **New in 4.2 (2026-11-02):** a phone-shell redesign, built from a
 phone mockup. The Android app's Home now has a risk-gauge ring (number
 + Low/Medium/High/Critical band) with a findings-by-severity breakdown,
@@ -22,7 +38,7 @@ professional redesign; **4.1** — Scan and VAPT as entirely separate
 tabs. Proof-before-reporting is untouched throughout: Nuclei matches
 and CVE advisories are labelled advisory-only, never findings.
 
-# Reconix 4.2 — Deep Web Vulnerability Scanner + EASM
+# Reconix 4.3 — Deep Web Vulnerability Scanner + EASM
 
 **New in 3.31 (weekly improvement, 2026-11-02):** two genuinely missing
 checks, both proof-guarded. **Third-party Subresource Integrity** —
@@ -352,7 +368,8 @@ CLI options: `--profile quick|full|api|passive`, `--checks a,b,c`,
   third-party Subresource Integrity (missing/invalid/ignored hashes).
 - **Active checks**: SQLi (error/boolean/time/UNION), XSS (reflected, stored,
   blind-OOB, DOM source->sink), OS command injection (computed marker),
-  SSTI, LFI/traversal, RFI, SSRF (OOB + cloud metadata), XXE (in-band +
+  SSTI, LFI/traversal, RFI, SSRF (OOB + cloud metadata: AWS, IBM,
+  OpenStack), XXE (in-band +
   blind), file upload (storage + PHP RCE), JWT (alg=none, weak-secret crack),
   GraphQL introspection, CORS, open redirect, CRLF, host-header injection,
   CSRF (no-token + auto-submit PoC), NoSQL operator injection, LDAPi,
@@ -362,7 +379,8 @@ CLI options: `--profile quick|full|api|passive`, `--checks a,b,c`,
 - **Access control**: IDOR via dual-session replay (second cookie and/or
   anonymous) + sequential-ID enumeration.
 - **API**: OpenAPI/Swagger discovery + import, endpoint fuzzing, JSON SQLi
-  and NoSQL operator injection, excessive data exposure.
+  and NoSQL operator injection, mass assignment (stored-field proof),
+  excessive data exposure.
 - **Management**: projects, risk score, finding status/notes, false-positive
   management (FPs auto-suppressed in future scans), scan diffing
   (new/fixed/still-open), trends, HTTP repeater with history, scheduled

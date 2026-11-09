@@ -105,6 +105,37 @@ def _schema_value(schema, depth=0):
     return "wscan"
 
 
+_MISSING = object()
+
+
+def _json_field_value(body, field):
+    """Value of `field` in a JSON object (or any item of a JSON list),
+    or _MISSING when the body is not JSON or lacks the field."""
+    try:
+        data = json.loads(body or "")
+    except Exception:
+        return _MISSING
+    if isinstance(data, dict):
+        return data.get(field, _MISSING)
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and field in item:
+                return item[field]
+    return _MISSING
+
+
+# Fields an attacker would try to smuggle into a write body. Each is
+# paired with a unique canary value and the severity if it sticks.
+# "role"/"is_admin" = privilege escalation (High); "price" = business-logic
+# tampering (Medium). Only fields NOT in the endpoint's declared schema
+# are tried — a declared field is not mass assignment.
+_MASS_ASSIGN_CANDIDATES = [
+    ("role", "rxcanary-4d2a-admin", "High"),
+    ("is_admin", True, "High"),
+    ("price", 0.07, "Medium"),
+]
+
+
 def fuzz_endpoints(ctx, endpoints):
     F, client = ctx.findings, ctx.client
     tested_pages = []
@@ -164,6 +195,37 @@ def fuzz_endpoints(ctx, endpoints):
                           proof=f"$ne probe similarity to baseline: {sim:.2f} "
                                 f"({len(base_r.body)} -> {len(rr.body)} bytes)",
                           param=f_name, resp=rr, cwe="CWE-943")
+                    break
+            # Mass assignment (BOPLA): add an undeclared field, then prove
+            # it was STORED by reading the resource back. A write response
+            # that merely echoes the request is NOT proof (echo endpoints
+            # would flag on every field), so only a GET that returns the
+            # canary afterwards counts. If the endpoint has no readable
+            # GET, nothing is reported — strict, no false positives.
+            for field, canary, sev in _MASS_ASSIGN_CANDIDATES:
+                if field in ep["json_fields"]:
+                    continue
+                if _json_field_value(
+                        client.fetch(url).body, field) == canary:
+                    continue  # canary already there: cannot prove storage
+                probe = dict(body)
+                probe[field] = canary
+                rr = client.fetch(url, method=method,
+                                  raw_body=json.dumps(probe).encode(),
+                                  content_type="application/json")
+                if not (rr.status and 200 <= rr.status < 300):
+                    continue
+                after = client.fetch(url)
+                if _json_field_value(after.body, field) == canary:
+                    F.add(sev, "Mass Assignment (stored undeclared field)",
+                          url,
+                          f"{method} {url} stores the undeclared field "
+                          f"'{field}': a read-back after the write returns "
+                          f"the injected value, so an attacker can set "
+                          f"fields the API never declared.",
+                          proof=f"GET after write returns {field}="
+                                f"{canary!r}", param=field, resp=after,
+                          cwe="CWE-915")
                     break
     # excessive data exposure over the API responses we collected
     excessive_data_scan(ctx, tested_pages)

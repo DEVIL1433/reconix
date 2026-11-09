@@ -43,6 +43,7 @@ REMEDIATION = {
     "403 Forbidden Bypass": "Enforce authorization on the origin for every path variant: normalize the path (case, URL encoding, dot segments, trailing separators) BEFORE the access check, and never trust client-supplied URL-override (X-Original-URL / X-Rewrite-URL) or forwarded-IP headers unless they come from a verified proxy. Deny by default.",
     "Subresource Integrity": "Add an integrity hash (sha384) plus crossorigin=\"anonymous\" to every cross-origin script/stylesheet, or self-host the file. Regenerate the hash whenever the file changes.",
     "XPath Injection": "Never build XPath queries by concatenating user input. Use parameterized/variable-bound XPath queries, or validate the input against an allow-list before use.",
+    "Mass Assignment": "Allow-list the fields each endpoint accepts and reject anything else; never bind request data straight onto the stored object (use explicit field mapping / DTOs).",
     "Subdomain Takeover": "Remove the dangling DNS record or reclaim the name on the service.",
     "Secret Exposed": "Rotate the credential, remove it from the bundle/source map, never ship secrets client-side.",
 }

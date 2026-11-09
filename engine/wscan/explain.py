@@ -13,6 +13,11 @@ _RULES = [
      "one-time offers used again and again, or prices changed on the "
      "way to the till. The computer checks the shape of the request, "
      "but not whether the deal makes sense."),
+    (("mass assignment",),
+     "The form or API accepts extra fields it was never meant to take. "
+     "An attacker can add a field like 'role' or 'price' to a request "
+     "and the server saves it — turning a normal account into an admin, "
+     "or changing what something costs."),
     (("another user", "bola"),
      "One logged-in user can see another user's private pages or data. "
      "The site checks that you are logged in, but not that the thing "
